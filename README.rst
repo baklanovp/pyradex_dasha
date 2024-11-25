@@ -10,6 +10,25 @@ created with f2py.
 Installation procedure for the f2py-wrapped version
 ---------------------------------------------------
 
+Conda environment
+-----------------
+
+.. code-block:: bash
+
+    conda create -n pyradex  python=3.10
+    conda install numpy
+
+Проверить работу без ошибок
+
+.. code-block:: bash
+
+    cd Radex/src
+    f2py slatec.f -m slatec -h
+    f2py slatec.f -m slatec -c
+
+Должны создаться файлы: slatec.pyf  &  slatec.cpython-310-x86_64-linux-gnu.so*
+
+
 You need to have `gfortran` and `f2py` on your path.  If you've successfully
 built numpy from source, you should have both.
 
