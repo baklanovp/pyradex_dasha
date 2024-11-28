@@ -158,30 +158,30 @@ def compile_radex(fcompiler='gfortran',f77exec=None):
 
     include_path = '-I{0}'.format(os.getcwd())
 
-    import platform
-    mac_ver = platform.mac_ver()
+    # import platform
+    # mac_ver = platform.mac_ver()
 
-    # not sure if this check is robust enough
-    if mac_ver[0] and int(mac_ver[0].split('.')[0]) >= 12:
-        linkdir = '/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/lib'
-        if os.path.exists(linkdir):
-            linker_path = f'-L{linkdir}'
-        else:
-            other_linkpaths = glob.glob('/Library/Developer/CommandLineTools/SDKs/MacOSX*.sdk/usr/lib')
-            if len(other_linkpaths) >= 1:
-                linker_path = f'-L{other_linkpaths[0]}'
-                print(f"Set linkpath to {linker_path}")
-            else:
-                warnings.warn("NO LINK PATH WAS FOUND!  Check that Mac OS X software development kit (SDK) is installed, and check where it's installed; it should be in /Library/Developer/CommandLineTools/SDKs/")
-    else:
-        linker_path = ''
+    # # not sure if this check is robust enough
+    # if mac_ver[0] and int(mac_ver[0].split('.')[0]) >= 12:
+    #     linkdir = '/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/lib'
+    #     if os.path.exists(linkdir):
+    #         linker_path = f'-L{linkdir}'
+    #     else:
+    #         other_linkpaths = glob.glob('/Library/Developer/CommandLineTools/SDKs/MacOSX*.sdk/usr/lib')
+    #         if len(other_linkpaths) >= 1:
+    #             linker_path = f'-L{other_linkpaths[0]}'
+    #             print(f"Set linkpath to {linker_path}")
+    #         else:
+    #             warnings.warn("NO LINK PATH WAS FOUND!  Check that Mac OS X software development kit (SDK) is installed, and check where it's installed; it should be in /Library/Developer/CommandLineTools/SDKs/")
+    # else:
+    linker_path = ''
 
     extra_args = '--f77flags="-fno-automatic" --fcompiler={0} {1} {2} {3}'.format(fcompiler,
                                                                                   f77exec,
                                                                                   include_path,
                                                                                   linker_path)
 
-    print(f"Running f2py with fcompiler={fcompiler}, f77exec={f77exec}, include_path={include_path}, linker_path={linker_path}")
+    print(f"Running f2py with \n    fcompiler={fcompiler}\n   f77exec={f77exec}\n   include_path={include_path}\n    linker_path={linker_path}")
     print(f"extra args = {extra_args}")
     print(f"Current directory = {os.getcwd()}")
 
@@ -189,7 +189,7 @@ def compile_radex(fcompiler='gfortran',f77exec=None):
 
     # Hack doesn't work.
     command = f'f2py -c -m radex {extra_args} *.f'
-    # print(command)
+    print(command)
     # import subprocess
     # r2 = subprocess.run(command.split(), stdout=subprocess.PIPE,
     #                     stderr=subprocess.PIPE, env=os.environ)
