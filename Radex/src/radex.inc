@@ -43,24 +43,33 @@ c     ---------------------------------------------------------
 c     
 c     Physical and astronomical constants (CODATA 2002)
 c
-      real*8 clight,hplanck,kboltz,pi,amu
 
-      parameter(clight  = 2.99792458d10)  ! speed of light     (cm/s)
-      parameter(hplanck = 6.6260963d-27)  ! Planck constant    (erg/Hz)
-      parameter(kboltz  = 1.3806505d-16)  ! Boltzmann constant (erg/K)
-      parameter(pi      = 3.14159265d0)   ! pi
-      parameter(amu     = 1.67262171d-24) ! atomic mass unit   (g)
+c     ! speed of light     (cm/s)
+      real*8, parameter :: clight  = 2.99792458d10 
+c     ! Planck constant    (erg/Hz)
+      real*8, parameter :: hplanck = 6.6260963d-27 
+c     ! Boltzmann constant (erg/K)
+      real*8, parameter :: kboltz  = 1.3806505d-16
+c     ! pi
+      real*8, parameter :: pi      = 3.14159265d0 
+c     ! atomic mass unit   (g)
+      real*8, parameter :: amu     = 1.67262171d-24 
 c
 c     ---------------------------------------------------------
 c     
 c     Array sizes
 c
-      integer maxlev,maxline,maxcoll,maxpart,maxtemp
-      parameter(maxpart = 9)     ! maximum no. of collision partners (seven defined)
-      parameter(maxtemp = 99)    ! maximum no. of collision temperatures
-      parameter(maxlev  = 2999)  ! maximum no. of energy levels
-      parameter(maxline = 99999)  ! maximum no. of radiative transitions
-      parameter(maxcoll = 99999) ! maximum no. of collisional transitions
+      
+c     ! maximum no. of collision partners (seven defined)
+      integer, parameter :: maxpart = 9 
+c     ! maximum no. of collision temperatures
+      integer, parameter :: maxtemp = 99
+c     ! maximum no. of energy levels
+      integer, parameter :: maxlev  = 2999  
+c     ! maximum no. of radiative transitions
+      integer, parameter :: maxline = 99999  
+c     ! maximum no. of collisional transitions
+      integer, parameter :: maxcoll = 99999 
 
 c
 c     ---------------------------------------------------------
@@ -111,15 +120,18 @@ c
 c     ---------------------------------------------------------
 c     
 c     Numerical parameters
-c
-      integer miniter,maxiter
-      parameter(miniter=10)     ! minimum number of iterations
-      parameter(maxiter=9999)   ! maximum number of iterations
+c     ! minimum number of iterations
+      integer, parameter :: miniter=10 
+c     ! maximum number of iterations
+      integer, parameter :: maxiter=9999   
 
-      real*8 ccrit,eps,minpop,fmin,fmax
-      parameter(ccrit=1.0e-6)   ! relative tolerance on solution
-      parameter(eps=1.0d-30)    ! round-off error
-      parameter(minpop=1.0d-20) ! minimum level population
+      
+c     ! relative tolerance on solution
+      real*8, parameter :: ccrit=1.0e-6  
+c     ! round-off error
+      real*8, parameter :: eps=1.0d-30  
+c     ! minimum level population
+      real*8, parameter :: minpop=1.0d-20 
 
 c     fmin,fmax: minimum/maximum output frequency
       common/freq/fmin,fmax
@@ -130,11 +142,10 @@ c     Radiative quantities
 c
       real*8 taul(maxline),tex(maxline),backi(maxline),xnu(maxline)
       real*8 trj(maxline),totalb(maxline),spfreq(maxline)
-      real*8 fk,thc,fgaus
       character*6 qnum(maxlev)
-      parameter(fk    = hplanck*clight/kboltz)
-      parameter(thc   = 2.d0*hplanck*clight)
-      parameter(fgaus = 1.0645*8.0*pi)
+      real*8, parameter :: fk    = hplanck*clight/kboltz
+      real*8, parameter :: thc   = 2.d0*hplanck*clight
+      real*8, parameter :: fgaus = 1.0645*8.0*pi
 
       common/radi/xnu,taul,tex,backi,totalb,spfreq,trj
       common/quant/qnum
