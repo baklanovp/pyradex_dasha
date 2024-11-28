@@ -1,8 +1,10 @@
 c     readdata.f
 c
       SUBROUTINE readdata
+      use mRadexInc
+
       implicit none
-      include 'radex.inc'
+c      include 'radex.inc'
 
 c This file is part of the RADEX software package
 c to calculate molecular excitation and radiative

@@ -1,6 +1,8 @@
       SUBROUTINE getinputs
+      use mRadexInc
+
       implicit none
-      include 'radex.inc'
+c      include 'radex.inc'
 
 c     io.f
 
@@ -153,8 +155,10 @@ c     The real stuff
 c     ---------------------------------------------------------
 
       SUBROUTINE defaults
+      use mRadexInc
+
       implicit none
-      include 'radex.inc'
+c      include 'radex.inc'
 
 c     Set physical parameters to default values
 
@@ -177,9 +181,9 @@ c     ------------------------------------------------------------
 
       FUNCTION length(str)
 c     Returns the lengths of a string
-      INTEGER length,maxl,i
-      PARAMETER(maxl=200)
-      CHARACTER*200 str
+      INTEGER length,i
+      integer, PARAMETER :: maxl=200
+      CHARACTER(len=maxl) :: str
 
       do i=1,maxl
          if (str(i:i).eq.' ') then
@@ -193,8 +197,10 @@ c     Returns the lengths of a string
 c     ------------------------------------------------------------
 
       SUBROUTINE output(niter)
+      use mRadexInc
+
       implicit none
-      include 'radex.inc'
+c      include 'radex.inc'
 
 c     Writes results to file
 

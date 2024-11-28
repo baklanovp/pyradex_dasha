@@ -1,282 +1,16 @@
 !    -*- f90 -*-
 ! Note: the context of this file is case sensitive.
 
-subroutine getinputs ! in io.f
-    character*120 :: outfile
-    character*120 :: molfile
-    character*120 :: specref
-    character*120 :: radat
-    integer :: method
-    character*20 :: version
-    character*120 :: logfile
-    integer :: nlev
-    integer :: nline
-    integer :: ncoll
-    integer :: npart
-    integer :: ntemp
-    integer dimension(99999) :: iupp
-    integer dimension(99999) :: ilow
-    real*8 :: amass
-    real*8 dimension(2999) :: eterm
-    real*8 dimension(2999) :: gstat
-    real*8 dimension(99999) :: aeinst
-    real*8 dimension(99999) :: eup
-    real*8 dimension(9) :: density
-    real*8 :: tkin
-    real*8 :: tbg
-    real*8 :: cdmol
-    real*8 :: deltav
-    real*8 :: totdens
-    real*8 :: fmin
-    real*8 :: fmax
-    real*8 dimension(99999) :: xnu
-    real*8 dimension(99999) :: taul
-    real*8 dimension(99999) :: tex
-    real*8 dimension(99999) :: backi
-    real*8 dimension(99999) :: totalb
-    real*8 dimension(99999) :: spfreq
-    real*8 dimension(99999) :: trj
-    character*6 dimension(2999) :: qnum
-    real*8 dimension(2999,2999) :: crate
-    real*8 dimension(2999) :: ctot
-    real*8 dimension(2999) :: xpop
-    logical :: debug
-    common /impex/ outfile,molfile,specref
-    common /setup/ radat,method,version,logfile
-    common /imolec/ nlev,nline,ncoll,npart,ntemp,iupp,ilow
-    common /rmolec/ amass,eterm,gstat,aeinst,eup
-    common /cphys/ density,tkin,tbg,cdmol,deltav,totdens
-    common /freq/ fmin,fmax
-    common /radi/ xnu,taul,tex,backi,totalb,spfreq,trj
-    common /quant/ qnum
-    common /collie/ crate,ctot,xpop
-    common /dbg/ debug
-end subroutine getinputs
-subroutine defaults ! in io.f
-    character*120 :: outfile
-    character*120 :: molfile
-    character*120 :: specref
-    character*120 :: radat
-    integer :: method
-    character*20 :: version
-    character*120 :: logfile
-    integer :: nlev
-    integer :: nline
-    integer :: ncoll
-    integer :: npart
-    integer :: ntemp
-    integer dimension(99999) :: iupp
-    integer dimension(99999) :: ilow
-    real*8 :: amass
-    real*8 dimension(2999) :: eterm
-    real*8 dimension(2999) :: gstat
-    real*8 dimension(99999) :: aeinst
-    real*8 dimension(99999) :: eup
-    real*8 dimension(9) :: density
-    real*8 :: tkin
-    real*8 :: tbg
-    real*8 :: cdmol
-    real*8 :: deltav
-    real*8 :: totdens
-    real*8 :: fmin
-    real*8 :: fmax
-    real*8 dimension(99999) :: xnu
-    real*8 dimension(99999) :: taul
-    real*8 dimension(99999) :: tex
-    real*8 dimension(99999) :: backi
-    real*8 dimension(99999) :: totalb
-    real*8 dimension(99999) :: spfreq
-    real*8 dimension(99999) :: trj
-    character*6 dimension(2999) :: qnum
-    real*8 dimension(2999,2999) :: crate
-    real*8 dimension(2999) :: ctot
-    real*8 dimension(2999) :: xpop
-    logical :: debug
-    common /impex/ outfile,molfile,specref
-    common /setup/ radat,method,version,logfile
-    common /imolec/ nlev,nline,ncoll,npart,ntemp,iupp,ilow
-    common /rmolec/ amass,eterm,gstat,aeinst,eup
-    common /cphys/ density,tkin,tbg,cdmol,deltav,totdens
-    common /freq/ fmin,fmax
-    common /radi/ xnu,taul,tex,backi,totalb,spfreq,trj
-    common /quant/ qnum
-    common /collie/ crate,ctot,xpop
-    common /dbg/ debug
-end subroutine defaults
-function length(str) ! in io.f
-    character*200 :: str
-    integer :: length
-end function length
-subroutine output(niter) ! in io.f
+subroutine matrix(niter,conv) ! in matrix.f
+    use mradexinc
     integer :: niter
-    character*120 :: outfile
-    character*120 :: molfile
-    character*120 :: specref
-    character*120 :: radat
-    integer :: method
-    character*20 :: version
-    character*120 :: logfile
-    integer :: nlev
-    integer :: nline
-    integer :: ncoll
-    integer :: npart
-    integer :: ntemp
-    integer dimension(99999) :: iupp
-    integer dimension(99999) :: ilow
-    real*8 :: amass
-    real*8 dimension(2999) :: eterm
-    real*8 dimension(2999) :: gstat
-    real*8 dimension(99999) :: aeinst
-    real*8 dimension(99999) :: eup
-    real*8 dimension(9) :: density
-    real*8 :: tkin
-    real*8 :: tbg
-    real*8 :: cdmol
-    real*8 :: deltav
-    real*8 :: totdens
-    real*8 :: fmin
-    real*8 :: fmax
-    real*8 dimension(99999) :: xnu
-    real*8 dimension(99999) :: taul
-    real*8 dimension(99999) :: tex
-    real*8 dimension(99999) :: backi
-    real*8 dimension(99999) :: totalb
-    real*8 dimension(99999) :: spfreq
-    real*8 dimension(99999) :: trj
-    character*6 dimension(2999) :: qnum
-    real*8 dimension(2999,2999) :: crate
-    real*8 dimension(2999) :: ctot
-    real*8 dimension(2999) :: xpop
-    logical :: debug
-    common /impex/ outfile,molfile,specref
-    common /setup/ radat,method,version,logfile
-    common /imolec/ nlev,nline,ncoll,npart,ntemp,iupp,ilow
-    common /rmolec/ amass,eterm,gstat,aeinst,eup
-    common /cphys/ density,tkin,tbg,cdmol,deltav,totdens
-    common /freq/ fmin,fmax
-    common /radi/ xnu,taul,tex,backi,totalb,spfreq,trj
-    common /quant/ qnum
-    common /collie/ crate,ctot,xpop
-    common /dbg/ debug
-end subroutine output
-subroutine backrad ! in background.f
-    character*120 :: outfile
-    character*120 :: molfile
-    character*120 :: specref
-    character*120 :: radat
-    integer :: method
-    character*20 :: version
-    character*120 :: logfile
-    integer :: nlev
-    integer :: nline
-    integer :: ncoll
-    integer :: npart
-    integer :: ntemp
-    integer dimension(99999) :: iupp
-    integer dimension(99999) :: ilow
-    real*8 :: amass
-    real*8 dimension(2999) :: eterm
-    real*8 dimension(2999) :: gstat
-    real*8 dimension(99999) :: aeinst
-    real*8 dimension(99999) :: eup
-    real*8 dimension(9) :: density
-    real*8 :: tkin
-    real*8 :: tbg
-    real*8 :: cdmol
-    real*8 :: deltav
-    real*8 :: totdens
-    real*8 :: fmin
-    real*8 :: fmax
-    real*8 dimension(99999) :: xnu
-    real*8 dimension(99999) :: taul
-    real*8 dimension(99999) :: tex
-    real*8 dimension(99999) :: backi
-    real*8 dimension(99999) :: totalb
-    real*8 dimension(99999) :: spfreq
-    real*8 dimension(99999) :: trj
-    character*6 dimension(2999) :: qnum
-    real*8 dimension(2999,2999) :: crate
-    real*8 dimension(2999) :: ctot
-    real*8 dimension(2999) :: xpop
-    logical :: debug
-    common /impex/ outfile,molfile,specref
-    common /setup/ radat,method,version,logfile
-    common /imolec/ nlev,nline,ncoll,npart,ntemp,iupp,ilow
-    common /rmolec/ amass,eterm,gstat,aeinst,eup
-    common /cphys/ density,tkin,tbg,cdmol,deltav,totdens
-    common /freq/ fmin,fmax
-    common /radi/ xnu,taul,tex,backi,totalb,spfreq,trj
-    common /quant/ qnum
-    common /collie/ crate,ctot,xpop
-    common /dbg/ debug
-end subroutine backrad
-subroutine galbr ! in background.f
-    character*120 :: outfile
-    character*120 :: molfile
-    character*120 :: specref
-    character*120 :: radat
-    integer :: method
-    character*20 :: version
-    character*120 :: logfile
-    integer :: nlev
-    integer :: nline
-    integer :: ncoll
-    integer :: npart
-    integer :: ntemp
-    integer dimension(99999) :: iupp
-    integer dimension(99999) :: ilow
-    real*8 :: amass
-    real*8 dimension(2999) :: eterm
-    real*8 dimension(2999) :: gstat
-    real*8 dimension(99999) :: aeinst
-    real*8 dimension(99999) :: eup
-    real*8 dimension(9) :: density
-    real*8 :: tkin
-    real*8 :: tbg
-    real*8 :: cdmol
-    real*8 :: deltav
-    real*8 :: totdens
-    real*8 :: fmin
-    real*8 :: fmax
-    real*8 dimension(99999) :: xnu
-    real*8 dimension(99999) :: taul
-    real*8 dimension(99999) :: tex
-    real*8 dimension(99999) :: backi
-    real*8 dimension(99999) :: totalb
-    real*8 dimension(99999) :: spfreq
-    real*8 dimension(99999) :: trj
-    character*6 dimension(2999) :: qnum
-    real*8 dimension(2999,2999) :: crate
-    real*8 dimension(2999) :: ctot
-    real*8 dimension(2999) :: xpop
-    logical :: debug
-    common /impex/ outfile,molfile,specref
-    common /setup/ radat,method,version,logfile
-    common /imolec/ nlev,nline,ncoll,npart,ntemp,iupp,ilow
-    common /rmolec/ amass,eterm,gstat,aeinst,eup
-    common /cphys/ density,tkin,tbg,cdmol,deltav,totdens
-    common /freq/ fmin,fmax
-    common /radi/ xnu,taul,tex,backi,totalb,spfreq,trj
-    common /quant/ qnum
-    common /collie/ crate,ctot,xpop
-    common /dbg/ debug
-end subroutine galbr
-subroutine splcoeff(x,f,n,fp1,fpn,fpp) ! in background.f
-    real*8 dimension(2500) :: x
-    real*8 dimension(2500) :: f
-    integer :: n
-    real*8 :: fp1
-    real*8 :: fpn
-    real*8 dimension(2500) :: fpp
-end subroutine splcoeff
-subroutine splintrp(xin,fin,fppin,n,x,fout) ! in background.f
-    real*8 dimension(n) :: xin
-    real*8 dimension(n),depend(n) :: fin
-    real*8 dimension(n),depend(n) :: fppin
-    integer, optional,check(shape(xin, 0) == n),depend(xin) :: n=shape(xin, 0)
-    real*8 :: x
-    real*8 :: fout
-end subroutine splintrp
+    logical :: conv
+end subroutine matrix
+function escprob(tau) ! in matrix.f
+    use mradexinc
+    real*8 :: tau
+    real*8 :: escprob
+end function escprob
 subroutine ludcmp(a,n,np,indx,d) ! in slatec.f
     double precision dimension(np,np) :: a
     integer, optional,check(shape(indx, 0) == n),depend(indx) :: n=shape(indx, 0)
@@ -419,67 +153,63 @@ subroutine xersve(librar,subrou,messg,kflag,nerr,level,icount) ! in slatec.f
 end subroutine xersve
 subroutine fdump ! in slatec.f
 end subroutine fdump
-subroutine readdata ! in readdata.f
-    character*120 :: outfile
-    character*120 :: molfile
-    character*120 :: specref
-    character*120 :: radat
-    integer :: method
-    character*20 :: version
-    character*120 :: logfile
-    integer :: nlev
-    integer :: nline
-    integer :: ncoll
-    integer :: npart
-    integer :: ntemp
-    integer dimension(99999) :: iupp
-    integer dimension(99999) :: ilow
-    real*8 :: amass
-    real*8 dimension(2999) :: eterm
-    real*8 dimension(2999) :: gstat
-    real*8 dimension(99999) :: aeinst
-    real*8 dimension(99999) :: eup
-    real*8 dimension(9) :: density
-    real*8 :: tkin
-    real*8 :: tbg
-    real*8 :: cdmol
-    real*8 :: deltav
-    real*8 :: totdens
-    real*8 :: fmin
-    real*8 :: fmax
-    real*8 dimension(99999) :: xnu
-    real*8 dimension(99999) :: taul
-    real*8 dimension(99999) :: tex
-    real*8 dimension(99999) :: backi
-    real*8 dimension(99999) :: totalb
-    real*8 dimension(99999) :: spfreq
-    real*8 dimension(99999) :: trj
-    character*6 dimension(2999) :: qnum
-    real*8 dimension(2999,2999) :: crate
-    real*8 dimension(2999) :: ctot
-    real*8 dimension(2999) :: xpop
-    logical :: debug
-    common /impex/ outfile,molfile,specref
-    common /setup/ radat,method,version,logfile
-    common /imolec/ nlev,nline,ncoll,npart,ntemp,iupp,ilow
-    common /rmolec/ amass,eterm,gstat,aeinst,eup
-    common /cphys/ density,tkin,tbg,cdmol,deltav,totdens
-    common /freq/ fmin,fmax
-    common /radi/ xnu,taul,tex,backi,totalb,spfreq,trj
-    common /quant/ qnum
-    common /collie/ crate,ctot,xpop
-    common /dbg/ debug
-end subroutine readdata
-subroutine matrix(niter,conv) ! in matrix.f
+subroutine backrad ! in background.f
+    use mradexinc
+end subroutine backrad
+subroutine galbr ! in background.f
+    use mradexinc
+end subroutine galbr
+subroutine splcoeff(x,f,n,fp1,fpn,fpp) ! in background.f
+    real*8 dimension(2500) :: x
+    real*8 dimension(2500) :: f
+    integer :: n
+    real*8 :: fp1
+    real*8 :: fpn
+    real*8 dimension(2500) :: fpp
+end subroutine splcoeff
+subroutine splintrp(xin,fin,fppin,n,x,fout) ! in background.f
+    real*8 dimension(n) :: xin
+    real*8 dimension(n),depend(n) :: fin
+    real*8 dimension(n),depend(n) :: fppin
+    integer, optional,check(shape(xin, 0) == n),depend(xin) :: n=shape(xin, 0)
+    real*8 :: x
+    real*8 :: fout
+end subroutine splintrp
+subroutine getinputs ! in io.f
+    use mradexinc
+end subroutine getinputs
+subroutine defaults ! in io.f
+    use mradexinc
+end subroutine defaults
+function length(str) ! in io.f
+    character*200 :: str
+    integer :: length
+end function length
+subroutine output(niter) ! in io.f
+    use mradexinc
     integer :: niter
-    logical :: conv
+end subroutine output
+subroutine readdata ! in readdata.f
+    use mradexinc
+end subroutine readdata
+module mradexinc ! in mRadexInc.f90
     character*120 :: outfile
     character*120 :: molfile
     character*120 :: specref
-    character*120 :: radat
-    integer :: method
-    character*20 :: version
-    character*120 :: logfile
+    character(len=120), parameter,optional :: radat='./data/'
+    character(len=20), parameter,optional :: version='30nov2011'
+    character(len=*), parameter,optional :: logfile='./radex.log'
+    integer, parameter,optional :: method=1
+    real*8, parameter,optional :: clight=2.99792458d10
+    real*8, parameter,optional :: hplanck=6.6260963d-27
+    real*8, parameter,optional :: kboltz=1.3806505d-16
+    real*8, parameter,optional :: pi=3.14159265d0
+    real*8, parameter,optional :: amu=1.67262171d-24
+    integer, parameter,optional :: maxpart=9
+    integer, parameter,optional :: maxtemp=99
+    integer, parameter,optional :: maxlev=2999
+    integer, parameter,optional :: maxline=99999
+    integer, parameter,optional :: maxcoll=99999
     integer :: nlev
     integer :: nline
     integer :: ncoll
@@ -498,85 +228,30 @@ subroutine matrix(niter,conv) ! in matrix.f
     real*8 :: cdmol
     real*8 :: deltav
     real*8 :: totdens
+    integer, parameter,optional :: miniter=10
+    integer, parameter,optional :: maxiter=9999
     real*8 :: fmin
     real*8 :: fmax
-    real*8 dimension(99999) :: xnu
+    real*8, parameter,optional :: ccrit=1e-06
+    real*8, parameter,optional :: eps=1.0d-30
+    real*8, parameter,optional :: minpop=1.0d-20
     real*8 dimension(99999) :: taul
     real*8 dimension(99999) :: tex
     real*8 dimension(99999) :: backi
-    real*8 dimension(99999) :: totalb
-    real*8 dimension(99999) :: spfreq
-    real*8 dimension(99999) :: trj
-    character*6 dimension(2999) :: qnum
-    real*8 dimension(2999,2999) :: crate
-    real*8 dimension(2999) :: ctot
-    real*8 dimension(2999) :: xpop
-    logical :: debug
-    common /impex/ outfile,molfile,specref
-    common /setup/ radat,method,version,logfile
-    common /imolec/ nlev,nline,ncoll,npart,ntemp,iupp,ilow
-    common /rmolec/ amass,eterm,gstat,aeinst,eup
-    common /cphys/ density,tkin,tbg,cdmol,deltav,totdens
-    common /freq/ fmin,fmax
-    common /radi/ xnu,taul,tex,backi,totalb,spfreq,trj
-    common /quant/ qnum
-    common /collie/ crate,ctot,xpop
-    common /dbg/ debug
-end subroutine matrix
-function escprob(tau) ! in matrix.f
-    real*8 :: tau
-    character*120 :: outfile
-    character*120 :: molfile
-    character*120 :: specref
-    character*120 :: radat
-    integer :: method
-    character*20 :: version
-    character*120 :: logfile
-    integer :: nlev
-    integer :: nline
-    integer :: ncoll
-    integer :: npart
-    integer :: ntemp
-    integer dimension(99999) :: iupp
-    integer dimension(99999) :: ilow
-    real*8 :: amass
-    real*8 dimension(2999) :: eterm
-    real*8 dimension(2999) :: gstat
-    real*8 dimension(99999) :: aeinst
-    real*8 dimension(99999) :: eup
-    real*8 dimension(9) :: density
-    real*8 :: tkin
-    real*8 :: tbg
-    real*8 :: cdmol
-    real*8 :: deltav
-    real*8 :: totdens
-    real*8 :: fmin
-    real*8 :: fmax
     real*8 dimension(99999) :: xnu
-    real*8 dimension(99999) :: taul
-    real*8 dimension(99999) :: tex
-    real*8 dimension(99999) :: backi
+    real*8 dimension(99999) :: trj
     real*8 dimension(99999) :: totalb
     real*8 dimension(99999) :: spfreq
-    real*8 dimension(99999) :: trj
     character*6 dimension(2999) :: qnum
-    real*8 dimension(2999,2999) :: crate
+    real*8, parameter,optional,depend(clight,hplanck,kboltz) :: fk=4.0
+    real*8, parameter,optional,depend(clight,hplanck) :: thc=2.d0*hplanck*clight
+    real*8, parameter,optional,depend(pi) :: fgaus=34.064
     real*8 dimension(2999) :: ctot
+    real*8 dimension(2999,2999) :: crate
     real*8 dimension(2999) :: xpop
     logical :: debug
-    real*8 :: escprob
-    common /impex/ outfile,molfile,specref
-    common /setup/ radat,method,version,logfile
-    common /imolec/ nlev,nline,ncoll,npart,ntemp,iupp,ilow
-    common /rmolec/ amass,eterm,gstat,aeinst,eup
-    common /cphys/ density,tkin,tbg,cdmol,deltav,totdens
-    common /freq/ fmin,fmax
-    common /radi/ xnu,taul,tex,backi,totalb,spfreq,trj
-    common /quant/ qnum
-    common /collie/ crate,ctot,xpop
-    common /dbg/ debug
-end function escprob
+end module mradexinc
 
-! This file was auto-generated with f2py (version:1.26.4).
+! This file was auto-generated with f2py (version:2.1.3).
 ! See:
 ! https://web.archive.org/web/20140822061353/http://cens.ioc.ee/projects/f2py2e

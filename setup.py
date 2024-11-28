@@ -41,7 +41,8 @@ class InstallRadex(Command):
 
     def run(self):
         import install_radex
-        install_radex.install_radex()
+        # install_radex.install_radex()
+        install_radex.install_radex(download=False, extract=False, patch=False, compile=True)
 
 class BuildRadexExecutable(Command):
     """

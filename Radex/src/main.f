@@ -17,10 +17,11 @@ c
 c     ---------------------------------------------------------
 c     
       PROGRAM radex
+            use mRadexInc
       implicit none
 c     Main program: controls program flow and drives subroutines
 
-      include 'radex.inc'
+      ! include 'radex.inc'
 
       integer niter   ! iteration counter
       integer imore   ! are we running again?

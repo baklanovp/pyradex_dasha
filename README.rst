@@ -16,7 +16,8 @@ Conda environment
 .. code-block:: bash
 
     conda create -n pyradex  python=3.10
-    conda install numpy
+    conda activate pyradex
+    conda install numpy requests
 
 Проверить работу без ошибок
 

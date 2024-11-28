@@ -133,7 +133,8 @@ def compile_radex(fcompiler='gfortran',f77exec=None):
     #r1 = os.system('f2py -h pyradex/radex/radex.pyf Radex/src/*.f --overwrite-signature > radex_build.log')
     pwd = os.getcwd()
     os.chdir('Radex/src/')
-    files = glob.glob('*.f')
+    files = glob.glob('*.f') + glob.glob('*.f90')
+    print("files = ", files)
     include_path = '--include-paths {0}'.format(os.getcwd())
     f2py.run_main(' -h radex.pyf --overwrite-signature'.split()+include_path.split()+files)
 
@@ -142,15 +143,18 @@ def compile_radex(fcompiler='gfortran',f77exec=None):
     else:
         f77exec = '--f77exec=%s' % f77exec
     #cmd = '-m radex -c %s --fcompiler=%s %s' % (" ".join(files), fcompiler, f77exec)
-    #f2py.run_main(['-m','radex','-c','--fcompiler={0}'.format(fcompiler), f77exec,] + files)
+    # f2py.run_main(['-m','radex','-c','--fcompiler={0}'.format(fcompiler), f77exec,] + files)
     source_list = []
     for fn in files:
+        print(f"Loading {fn}")
         with open(fn, 'r') as f:
             source_list.append(f.read())
     source = "\n".join(source_list)
+    print(f"len(source)= {len(source)}")
 
-    #with open("merged_source.f", 'wb') as fh:
-    #    fh.write(source)
+    # with open("merged_source.f", 'wb') as fh:
+    with open("merged_source.f", 'w') as fh:
+        fh.write(source)
 
     include_path = '-I{0}'.format(os.getcwd())
 

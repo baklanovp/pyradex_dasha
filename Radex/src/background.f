@@ -41,15 +41,17 @@ C-----      this table. The intensity need not be specified at all
 C-----      frequencies of the line list, but a warning message will
 C-----      appear if extrapolation (rather than interpolation) is required.
 C
+      use mRadexInc
+
       implicit none
 
-      include 'radex.inc'
+c      include 'radex.inc'
 
       character*80 bgfile,title
       integer iline,irad,nrad
       real*8 xnubr(maxline),spinbr(maxline),dilbr(maxline),hnu,tbb3
-      real*8 logfreq(maxline),logflux(maxline),fpp(maxline),huge
-       parameter(huge=1.0e38)
+      real*8 logfreq(maxline),logflux(maxline),fpp(maxline)
+      real*8,  parameter :: huge=1.0e38
 c      ! highest allowed by f90 (fdvt 28apr06)
       real*8 aa,bb,fout
       real*8 xnumin,xnumax,cbi,xln
@@ -221,13 +223,15 @@ C.....on the model of average Galactic starlight in the solar
 C.....neighborhood of Mathis, Mezger, and Panagia (1983, Astron. 
 C.....Astrophys., 128, 212).
 C
+      use mRadexInc
+
       implicit none
 
-      include 'radex.inc'
+c      include 'radex.inc'
 
       integer iline
-      real*8 aa,hnuk,tcmb,cbi,cmi,cmib,yy,xla,ylg
-      parameter(tcmb=2.725)
+      real*8 aa,hnuk,cbi,cmi,cmib,yy,xla,ylg
+      real*8,  parameter :: tcmb=2.725
 
 c     aa,hnuk: help to calculate Planck function
 c     tcmb:    CMB temperature
@@ -331,9 +335,9 @@ C.....Recipes (Ch. 3.3), but are not identical to them.
 C
       SUBROUTINE SPLCOEFF(x,f,N,fp1,fpn,fpp)
       IMPLICIT NONE
-      INTEGER N,NMAX
+      INTEGER N
       INTEGER I,K
-      PARAMETER (NMAX=2500)
+      INTEGER, PARAMETER :: NMAX = 2500
       REAL*8 fp1,fpn,x(nmax),f(nmax),fpp(nmax)
       REAL*8 p,qn,sig,un,u(NMAX)
 C.....N values of a function f(x) are tabulated at points x(i), in 

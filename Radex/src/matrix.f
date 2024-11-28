@@ -17,8 +17,10 @@ c
 c     ---------------------------------------------------------
 c     
       SUBROUTINE matrix(niter,conv)
+      use mRadexInc
+
       implicit none
-      include 'radex.inc'
+c      include 'radex.inc'
 
 c     Set up rate matrix
 
@@ -321,8 +323,10 @@ csb301111 now do the underrelaxation!
 c     ------------------------------------------------------------
 
       FUNCTION ESCPROB(TAU)
+      use mRadexInc
+
       implicit none
-      include 'radex.inc'
+c      include 'radex.inc'
 
       real*8 escprob,beta,tau
       real*8 taur  !optical radius
