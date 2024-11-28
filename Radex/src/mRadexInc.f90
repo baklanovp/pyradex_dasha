@@ -183,9 +183,9 @@ module mRadexInc
 ! c     ---------------------------------------------------------
 
 ! c     For development / maintenance purposes:
-      logical debug
-      ! common/dbg/debug
-! c     logical, parameter(debug=.false.)
+      logical is_debug
+      ! common/dbg/is_debug
+! c     logical, parameter(is_debug=.false.)
 
 ! c     ---------------------------------------------------------
 ! c     End of common definitions

@@ -62,7 +62,7 @@ c     db
 
 c     Executable statements begin here
 
-      if (debug) write(*,*) 'niter = ',niter
+      if (is_debug) write(*,*) 'niter = ',niter
 
 c     Clear array of level populations.
       do ilev=1,nlev
@@ -158,7 +158,7 @@ c     Warn user if convergence problems expected
       if ((niter.eq.1).and.(nfat.gt.0)) print*
      $     ,"*** Warning: Some lines have very high optical depth"
 
-      if (debug) then
+      if (is_debug) then
          print*,yrate(1,1),yrate(1,2),yrate(1,3),yrate(1,4)
          print*,yrate(2,1),yrate(2,2),yrate(2,3),yrate(2,4)
          print*,yrate(3,1),yrate(3,2),yrate(3,3),yrate(3,4)
@@ -174,7 +174,7 @@ c     Contribution of collisional processes to the rate matrix.
 	enddo
       enddo
 
-      if (debug) then
+      if (is_debug) then
          print*,yrate(1,1),yrate(1,2),yrate(1,3),yrate(1,4)
          print*,yrate(2,1),yrate(2,2),yrate(2,3),yrate(2,4)
          print*,yrate(3,1),yrate(3,2),yrate(3,3),yrate(3,4)
@@ -187,7 +187,7 @@ c     db
 C     An auxiliary array is passed to the linear equation solver after
 C     renormalization. The array Y retains the original matrix elements.
 
-      if (debug) print*,'reducing matrix...' 
+      if (is_debug) print*,'reducing matrix...' 
 
       do ilev=1,nlev
          do jlev=1,nlev
@@ -204,7 +204,7 @@ C     to exclude the radiatively coupled levels.
          if(eterm(ilev).le.redcrit) nreduce = nreduce+1
       enddo
 
-      if (debug) print*,'nreduce=',nreduce
+      if (is_debug) print*,'nreduce=',nreduce
 
 C     We now separate the collisionally coupled levels from those that
 C     are coupled mainly by radiative processes, compute an effective
@@ -223,12 +223,12 @@ C     explicitly for the low-lying levels only.
 
 c     Invert this reduced matrix
 
-      if (debug) print*,'inverting reduced matrix...'
+      if (is_debug) print*,'inverting reduced matrix...'
 
       call ludcmp(uarray,nreduce+1,maxlev,indx,dsign)
       call lubksb(uarray,nreduce+1,maxlev,indx,rhs)
 
-      if (debug) print*,'computing cascade...'
+      if (is_debug) print*,'computing cascade...'
 
 C     Compute the populations of the highly excited states
       if(nlev.gt.nreduce) then
@@ -242,7 +242,7 @@ C     Compute the populations of the highly excited states
       endif
 
       else  !if we don't want to reduce
-         if (debug) print*,'inverting non-reduced matrix...'
+         if (is_debug) print*,'inverting non-reduced matrix...'
          call ludcmp(yrate,nplus,maxlev,indx,dsign)
          call lubksb(yrate,nplus,maxlev,indx,rhs)
       endif
@@ -252,8 +252,8 @@ C     Level populations are the normalized RHS components
       do ilev=1,nlev
          total = rhs(ilev)+total   
       enddo
-      if (debug) print*,'total rhs=',total
-      if (debug) print*,'rhs=',(rhs(ilev),ilev=1,nlev)
+      if (is_debug) print*,'total rhs=',total
+      if (is_debug) print*,'rhs=',(rhs(ilev),ilev=1,nlev)
 
 c     Limit population to minpop
       do ilev=1,nlev
@@ -268,7 +268,7 @@ csb301111 first iteration: there is no old population
 
       enddo
 
-      if (debug) print*,'computing T_ex...'
+      if (is_debug) print*,'computing T_ex...'
 
 c     Compute excitation temperatures of the lines
       tsum = 0.0
@@ -302,14 +302,14 @@ c     Update excitation temperature & optical depth
         endif
       enddo
 
-      if (debug) write(*,*) niter,(tex(iline),iline=1,nline),
+      if (is_debug) write(*,*) niter,(tex(iline),iline=1,nline),
      $     (xpop(ilev),ilev=1,nlev),(taul(iline),iline=1,nline)
 
 C     Introduce a minimum number of iterations
       if(niter.ge.miniter) then
          if(nthick.eq.0) conv = .true.
          if(tsum/nthick.lt.ccrit) conv = .true.
-      if (debug) print*,niter,nthick,tsum,tsum/nthick,conv
+      if (is_debug) print*,niter,nthick,tsum,tsum/nthick,conv
       endif
 
 csb301111 now do the underrelaxation!

@@ -66,7 +66,7 @@ c     in the header, every second line is a comment
 
       if (nlev.lt.1) stop 'error: too few energy levels defined' 
       if (nlev.gt.maxlev) stop 'error: too many energy levels defined' 
-      if (debug) write(*,*) 'readdata: basics'
+      if (is_debug) write(*,*) 'readdata: basics'
 
 c     Term energies and statistical weights
       read(11,*)
@@ -76,7 +76,7 @@ c     Term energies and statistical weights
      $        stop 'error:illegal level number'
       enddo
 
-      if (debug) write(*,*) 'readdata: levels'!,(eterm(ilev),ilev=1,nlev)
+      if (is_debug) write(*,*) 'readdata: levels'!,(eterm(ilev),ilev=1,nlev)
 
 c     Radiative upper & lower levels and Einstein coefficients
       read(11,*) 
@@ -97,7 +97,7 @@ c     Radiative upper & lower levels and Einstein coefficients
      $        stop 'error:illegal line frequency'
       enddo
 
-      if (debug) write(*,*) 'readdata: lines'!,(xnu(iline),iline=1,nline)
+      if (is_debug) write(*,*) 'readdata: lines'!,(xnu(iline),iline=1,nline)
 
 c     Number of collision partners
       read(11,*)
@@ -123,7 +123,7 @@ c     Number of collision partners
          read(11,*) (temp(itemp),itemp=1,ntemp)
          read(11,*)
 
-         if (debug) write(*,*) 'ready to read ',ncoll,' rates for '
+         if (is_debug) write(*,*) 'ready to read ',ncoll,' rates for '
      $        ,ntemp,' temperatures for partner ',ipart
 
          do icoll=1,ncoll
@@ -196,11 +196,11 @@ c     Finished reading rate coefficients
 
       enddo
 
-      if (debug) write(*,*) 'readdata: rate coeffs'
+      if (is_debug) write(*,*) 'readdata: rate coeffs'
 
       close(11)
 
-C$$$      if (debug) then
+C$$$      if (is_debug) then
 C$$$         print*,colld(1,1,1),colld(1,1,2),colld(1,1,3)
 C$$$         print*,colld(1,2,1),colld(1,2,2),colld(1,2,3)
 C$$$         print*,colld(1,3,1),colld(1,3,2),colld(1,3,3)
@@ -208,7 +208,7 @@ C$$$      endif
 
 c     Combine rate coeffs of several partners, multiplying by partner density.
 
-C$$$      if (debug) then
+C$$$      if (is_debug) then
 C$$$         print*,'id=',(id(ipart),ipart=1,npart)
 C$$$         print*,'density=',(density(ipart),ipart=1,npart)
 C$$$         print*,'rate(2,1)=',(colld(ipart,2,1),ipart=1,npart)
@@ -257,7 +257,7 @@ c     warning is given without reason. May fix this later if needed.
          stop
       endif
 
-C$$$      if (debug) then
+C$$$      if (is_debug) then
 C$$$         print*,crate(1,1),crate(1,2),crate(1,3)
 C$$$         print*,crate(2,1),crate(2,2),crate(2,3)
 C$$$         print*,crate(3,1),crate(3,2),crate(3,3)
@@ -289,13 +289,13 @@ c     Calculate total collision rates (inverse collisional lifetime)
 	enddo
       enddo
 
-C$$$      if (debug) then
+C$$$      if (is_debug) then
 C$$$         print*,crate(1,1),crate(1,2),crate(1,3)
 C$$$         print*,crate(2,1),crate(2,2),crate(2,3)
 C$$$         print*,crate(3,1),crate(3,2),crate(3,3)
 C$$$      endif
 
-c      if (debug) print*,'ctot=',(ctot(ilev),ilev=1,nlev)
+c      if (is_debug) print*,'ctot=',(ctot(ilev),ilev=1,nlev)
 
       return
    99 write(*,*) 'error opening data file ',molfile

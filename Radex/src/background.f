@@ -82,7 +82,7 @@ c     Executable statements begin here
 c     option 1: Single black body
          do iline = 1,nline
             hnu = fk*xnu(iline)/tbg
-            if (debug) write(*,*) iline,hnu,xnu(iline)
+            if (is_debug) write(*,*) iline,hnu,xnu(iline)
             if(hnu.ge.160.0d0) then
                backi(iline) = eps
 c	sb/fvdt 30nov2011 Do not set backi to zero: may propagate into T(ex) 
@@ -407,7 +407,11 @@ C.....function, foutp and foutpp.
       goto 1
       endif
       h=xin(khi)-xin(klo)
-      if (h.eq.0.d0) pause 'Warning: bad xin input in splintrp '
+      if (h.eq.0.d0) then
+            print *, 'Warning: bad xin input in splintrp '
+            print *, 'press any key to continue'
+            read (*,*)
+      endif
       a=(xin(khi)-x)/h
       b=(x-xin(klo))/h
       fout=a*fin(klo)+b*fin(khi)+((a**3.d0-a)*fppin(klo)+

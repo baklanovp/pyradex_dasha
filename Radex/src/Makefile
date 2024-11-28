@@ -116,7 +116,8 @@ endif
 #FC = g95
 #FFLAGS += -Wall -O2
 # there may be other options of course ...
-FILES =  mRadexInc.f90 main.f io.f readdata.f matrix.f background.f slatec.f
+FILES =  cla.f90 mRadexInc.f90 \
+         main.f90 io.f readdata.f matrix.f background.f slatec.f
 TEMP := $(FILES:.f=.o)
 OBJECTS := $(patsubst %.f90,%.o, $(TEMP))
 
@@ -128,12 +129,13 @@ LDFLAGS += -o
 
 # %.o: %.f radex.inc Makefile
 # 	$(COMPILE.F) $*.f -o $@
-
-%.o: %.f
-	$(FC) $(FFLAGS_F77) -c $< -o  $@  $(INCL_DIR)
+### Dependences
 
 %.o: %.f90
 	$(FC) $(FFLAGS) -c $< -o $@  $(INCL_DIR)
+  
+%.o: %.f
+	$(FC) $(FFLAGS_F77) -c $< -o  $@  $(INCL_DIR)
 
 %.o: %.mod ## if make wants m2c thinking that mod is from Modula language
 
@@ -148,8 +150,12 @@ LDFLAGS += -o
 
 .PHONY:
 
-all: help # install clean
-	@echo files: $(OBJECTS) 
+all: help 
+	@echo files: $(FILES) 
+	@echo OBJECTS: $(OBJECTS)  
+
+radexinstall: radex install clean  ## Build radex, install radex, clean *-,mod-files
+	@ls -l $(BINDIR)/$(EXEC)
 
 radex: $(OBJECTS) $(EXEC)  ## Build radex
 	$(FC) $(LDFLAGS) $(EXEC)  $(OBJECTS) 
@@ -157,7 +163,7 @@ radex: $(OBJECTS) $(EXEC)  ## Build radex
 	@ls -l $(EXEC)
 
 
-install: $(EXEC)   ## Install radex
+install:   ## Install radex
 	install -m 755 -p -s $(EXEC) $(BINDIR)
 
 

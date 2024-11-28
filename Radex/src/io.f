@@ -46,12 +46,12 @@ c     must read file names in format(A): in free format, slashes are treated as 
       write(*,21) 'Molecular data file ? '
       read(*,20) molfile
       if ((molfile(1:1).ne.'/').and.(molfile(1:1).ne.'.'))
-     $     molfile = radat(1:length(radat))//molfile(1:length(molfile))
-      write(13,20) molfile(1:length(molfile))
+     $     molfile = trim(radat)//trim(molfile)
+      write(13,20) trim(molfile)
 
       write(*,21) 'Name of output file ? '
       read(*,20) outfile
-      write(13,20) outfile(1:length(outfile))
+      write(13,20) trim(outfile)
 
  41   write(*,21) 'Minimum and maximum output frequency [GHz] ? '
       read(*,*) fmin,fmax
@@ -236,32 +236,21 @@ c     Start with summary of input parameters
  31   format (a,1pe10.3)
  32   format (a)
 
-      write(8,32) '* Radex version        : '
-     $      //version(1:length(version))
-      if (method.eq.1)
-     $write(8,32) '* Geometry             : Uniform sphere'
-      if (method.eq.2)
-     $write(8,32) '* Geometry             : Expanding sphere'
-      if (method.eq.3) 
-     $write(8,32) '* Geometry             : Plane parallel slab'
+      write(8,32) '* Radex version        : '//trim(version)
+      if (method.eq.1) write(8,32) '* Geometry             : Uniform sphere'
+      if (method.eq.2) write(8,32) '* Geometry             : Expanding sphere'
+      if (method.eq.3) write(8,32) '* Geometry             : Plane parallel slab'
 c      write(8,32) '* Molecular data file  : '//specref(1:80)
       write(8,32) '* Molecular data file  : '//molfile(1:80)
       write(8,30) '* T(kin)            [K]: ',tkin
 c      write(8,31) '* Total density  [cm-3]: ',totdens
-      if(density(1).gt.eps)
-     $write(8,31) '* Density of H2  [cm-3]: ',density(1)
-      if(density(2).gt.eps)
-     $write(8,31) '* Density of pH2 [cm-3]: ',density(2)
-      if(density(3).gt.eps)
-     $write(8,31) '* Density of oH2 [cm-3]: ',density(3)
-      if(density(4).gt.eps)
-     $write(8,31) '* Density of e-  [cm-3]: ',density(4)
-      if(density(5).gt.eps)
-     $write(8,31) '* Density of H   [cm-3]: ',density(5)
-      if(density(6).gt.eps)
-     $write(8,31) '* Density of He  [cm-3]: ',density(6)
-      if(density(7).gt.eps)
-     $write(8,31) '* Density of H+  [cm-3]: ',density(7)
+      if(density(1).gt.eps) write(8,31) '* Density of H2  [cm-3]: ',density(1)
+      if(density(2).gt.eps) write(8,31) '* Density of pH2 [cm-3]: ',density(2)
+      if(density(3).gt.eps) write(8,31) '* Density of oH2 [cm-3]: ',density(3)
+      if(density(4).gt.eps) write(8,31) '* Density of e-  [cm-3]: ',density(4)
+      if(density(5).gt.eps) write(8,31) '* Density of H   [cm-3]: ',density(5)
+      if(density(6).gt.eps) write(8,31) '* Density of He  [cm-3]: ',density(6)
+      if(density(7).gt.eps) write(8,31) '* Density of H+  [cm-3]: ',density(7)
       write(8,30) '* T(background)     [K]: ',tbg
       write(8,31) '* Column density [cm-2]: ',cdmol
       write(8,30) '* Line width     [km/s]: ',deltav/1.0d5
