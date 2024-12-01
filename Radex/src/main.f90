@@ -20,6 +20,9 @@ PROGRAM radex
    use mRadexInc
    use cla,   only: cla_init, cla_register, cla_get, cla_help, cla_key_present &
       , cla_flag, cla_int, cla_char, STRLEN;
+   use io,  only: getinputs, output;
+   use background, only: backrad
+   
    implicit none
    !      Main program: controls program flow and drives subroutines
 
@@ -88,15 +91,15 @@ PROGRAM radex
 23 call output(niter)
 
    !      See if user wants more, else call it a day
-51 format(A,$)
-   write(*,51) '  Another calculation [0/1] ? '
-   read(*,*) imore
-   write(13,52) imore
-52 format(i2)
-   if (imore.eq.1) go to 21
-   write(*,*) '   Have a nice day.'
+   ! 51 format(A,$)
+   ! write(*,51) '  Another calculation [0/1] ? '
+   ! read(*,*) imore
+   ! write(13,52) imore
+   ! 52 format(i2)
+   ! if (imore.eq.1) go to 21
+   ! write(*,*) '   Have a nice day.'
    !      Done! Now close log file ...
-   close(13)
+   ! close(13)
    !      ...and output file.
    close(8)
    stop
