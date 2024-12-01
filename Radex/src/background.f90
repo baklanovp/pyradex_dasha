@@ -19,6 +19,7 @@ module background
    implicit none
 
    public :: backrad
+   public :: galbr, splintrp, splcoeff
 
    private
 
@@ -174,7 +175,9 @@ contains
             totalb(iline) = backi(iline)
          enddo
 
-         if ((xnumin.lt.xnubr(1)).or.(xnumax.gt.xnubr(nrad))) print*,'Warning: the line list requires extrapolation of the background'
+         if ((xnumin.lt.xnubr(1)).or.(xnumax.gt.xnubr(nrad))) then
+            print*,'Warning: the line list requires extrapolation of the background'
+         endif
 
 !        xlmin = dlog10(xnumin)
 !        xlmax = dlog10(xnumax)

@@ -4,6 +4,9 @@ module io
    implicit none
 
    public :: getinputs, output
+   
+   public :: defaults, length
+
 
    private
 
