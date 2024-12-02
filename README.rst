@@ -7,6 +7,11 @@ As of v0.2, created October 26, 2013, this package includes both a python
 wrapper of the command-line program and a direct wrapper of the fortran code
 created with f2py.
 
+
+- https://github.com/astropenguin/ndradex
+- https://github.com/fjdu/myRadex
+
+
 Installation procedure for the f2py-wrapped version
 ---------------------------------------------------
 
@@ -18,6 +23,8 @@ Conda environment
     conda create -n pyradex  python=3.10
     conda activate pyradex
     conda install numpy requests
+    conda install conda-forge::cython
+
 
 Проверить работу без ошибок
 

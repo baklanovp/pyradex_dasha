@@ -12,7 +12,7 @@ extension1 = Extension(
     include_dirs=["./"],
     depends=['setup.py', 'makefile'],
     extra_compile_args=["-std=c++11"],
-    extra_link_args=["-mmacosx-version-min=13.0"]
+    # extra_link_args=["-mmacosx-version-min=13.0"]
 )
 # gfortran --print-file-name libgfortran.a
 

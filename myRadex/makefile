@@ -9,10 +9,10 @@ SUPPRESS_WARNING_FOR_LEGACY_CODE = -w
 GFORTRAN_LEGACYOPT = -std=legacy
 GFORTRAN_LEGACY_VERSION = "8"
 GFORTRAN_VERSION := "`gfortran -dumpversion`"
-IS_GFORTRAN_ABOVE_LEGACY_VERSION := $(shell expr "$(GFORTRAN_VERSION)" ">=" "$(GFORTRAN_LEGACY_VERSION)")
-ifeq ("$(IS_GFORTRAN_ABOVE_LEGACY_VERSION)", "0")
-  GFORTRAN_LEGACYOPT =
-endif
+# IS_GFORTRAN_ABOVE_LEGACY_VERSION := $(shell expr "$(GFORTRAN_VERSION)" ">=" "$(GFORTRAN_LEGACY_VERSION)")
+# ifeq ("$(IS_GFORTRAN_ABOVE_LEGACY_VERSION)", "0")
+#   GFORTRAN_LEGACYOPT =
+# endif
 
 ifeq ($(cpl), ifort)
   lflags_debug = -debug -save-temps -fpic -heap-arrays -O0 -g -traceback -check all -fpe0 -fp-stack-check -fp-model precise -fimf-arch-consistency=true -fpp
