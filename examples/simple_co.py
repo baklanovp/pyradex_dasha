@@ -1,5 +1,13 @@
-import pyradex
 import pylab as pl
+import sys, os
+from os.path import dirname, abspath, join
+
+ROOT_DIRECTORY = dirname(dirname(abspath(__file__)))
+print (ROOT_DIRECTORY)
+
+sys.path.append(join(ROOT_DIRECTORY,'pyradex'))
+# sys.path.append(os.path.expanduser('~/Sn/Release/python/pyradex_dasha/pyradex'))
+import pyradex
 
 R = pyradex.Radex(column=1e16)
 R.maxiter=1000

@@ -152,8 +152,8 @@ def compile_radex(fcompiler='gfortran',f77exec=None):
     source = "\n".join(source_list)
     print(f"len(source)= {len(source)}")
 
-    # with open("merged_source.f", 'wb') as fh:
-    with open("merged_source.f", 'w') as fh:
+    # with open("merged_source.f90", 'wb') as fh:
+    with open("merged_source.f90", 'w') as fh:
         fh.write(source)
 
     include_path = '-I{0}'.format(os.getcwd())
@@ -176,7 +176,11 @@ def compile_radex(fcompiler='gfortran',f77exec=None):
     # else:
     linker_path = ''
 
-    extra_args = '--f77flags="-fno-automatic" --fcompiler={0} {1} {2} {3}'.format(fcompiler,
+    # extra_args = '--f77flags="-fno-automatic" --fcompiler={0} {1} {2} {3}'.format(fcompiler,
+    #                                                                               f77exec,
+    #                                                                               include_path,
+    #                                                                               linker_path)
+    extra_args = '--fcompiler={0} {1} {2} {3}'.format(fcompiler,
                                                                                   f77exec,
                                                                                   include_path,
                                                                                   linker_path)
@@ -188,26 +192,26 @@ def compile_radex(fcompiler='gfortran',f77exec=None):
     #f2py_path = os.path.join(sys.exec_prefix, 'bin', 'f2py')
 
     # Hack doesn't work.
-    command = f'f2py -c -m radex {extra_args} *.f'
+    command = f'f2py -c -m radex {extra_args} *.f90'
     print(command)
     # import subprocess
     # r2 = subprocess.run(command.split(), stdout=subprocess.PIPE,
     #                     stderr=subprocess.PIPE, env=os.environ)
 
     try:
-        r2 = f2py.compile(source="merged_source.f", modulename='radex',
+        r2 = f2py.compile(source="merged_source.f90", modulename='radex',
                           verbose=True, full_output=False,
                           extra_args=extra_args,)
     except TypeError:
         # Regression fix for https://github.com/keflavich/pyradex/issues/37
         print("You're using numpy version <1.20, which may cause additional failures.  See Issue 37")
-        r2 = f2py.compile(source="merged_source.f", modulename='radex',
+        r2 = f2py.compile(source="merged_source.f90", modulename='radex',
                           verbose=True,
                           extra_args=extra_args,)
     print(f"Done running f2py in {os.getcwd()}.  r2={r2}")
     # 0 on success, or a subprocess.CompletedProcess if full_output=True
     if not isinstance(r2, CompletedProcess) and r2 != 0:
-        r3 = f2py.compile(source="merged_source.f", modulename='radex',
+        r3 = f2py.compile(source="merged_source.f90", modulename='radex',
                           verbose=True, full_output=True,
                           extra_args=extra_args,)
         raise SystemError(f"f2py failed with error {r2}\n"

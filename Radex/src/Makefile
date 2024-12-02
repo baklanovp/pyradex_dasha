@@ -30,7 +30,7 @@ SYSTYPE ?= gfortran
 MD := mkdir
 MV := mv
 DEL = rm -f
-
+for2py = f2py
 ########################################################################
 # Paths
 
@@ -161,6 +161,9 @@ radex: $(OBJECTS) $(EXEC)  ## Build radex
 	$(FC) $(LDFLAGS) $(EXEC)  $(OBJECTS) 
 #	strip $@
 	@ls -l $(EXEC)
+
+f2py:  ## To make the wrapper with f2py
+	$(for2py) -c -m radex --fcompiler=gfortran   *.f90
 
 
 install:   ## Install radex
