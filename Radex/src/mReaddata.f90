@@ -1,5 +1,22 @@
+module mReaddata
+
+   implicit none
+
+   public :: readdata
+
+
+   private
+
+contains
+
 subroutine readdata
-   use mRadexInc
+   use mRadexInc, only: eterm, iupp, amass, gstat, qnum, maxpart, ilow  &
+                     , aeinst, maxcoll, spfreq, maxtemp, maxlev, eup, eps &
+                     , fk, crate, ctot, density, xnu, ntemp, specref, tkin &
+                     , totdens, nline, ncoll, molfile, nlev, is_debug, maxline &
+                     , npart
+                     
+   
 
    implicit none
    !     include 'radex.inc'
@@ -283,3 +300,5 @@ subroutine readdata
 99 write(*,*) 'error opening data file ',molfile
    stop
 endsubroutine readdata
+
+endmodule mReaddata

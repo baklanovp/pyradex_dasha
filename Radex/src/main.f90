@@ -17,11 +17,14 @@
 !      ---------------------------------------------------------
 
 PROGRAM radex
-   use mRadexInc
+   use mRadexInc, only: setup_type, is_debug, maxiter, logfile, method, radat, version &
+                      , radex_init, setup
    use cla,   only: cla_init, cla_register, cla_get, cla_help, cla_key_present &
       , cla_flag, cla_int, cla_char, STRLEN;
    use io,  only: getinputs, output;
    use background, only: backrad
+   use mMatrix,  only: matrix
+   use mReaddata, only: readdata
    
    implicit none
    !      Main program: controls program flow and drives subroutines
@@ -31,6 +34,7 @@ PROGRAM radex
    integer niter   ! iteration counter
    integer imore   ! are we running again?
    logical conv    ! are we converged?
+
 
    !! !   ***************  UNIT    ************************
    call cla_init();
@@ -53,6 +57,7 @@ PROGRAM radex
    print*,'   Welcome to Radex, version of '//version
    print*
 
+   call radex_init(setup)
    !      Get input parameters
    if (is_debug) print*,'calling getinputs'
 21 call getinputs

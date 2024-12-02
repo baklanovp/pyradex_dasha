@@ -15,16 +15,32 @@
 !  to our paper: A&A 468, 627 (2007).
 
 !      ---------------------------------------------------------
+module mMatrix
+
+   implicit none
+
+   public :: matrix, escprob
+
+
+   private
+
+contains
 
 SUBROUTINE matrix(niter,conv)
-   use mRadexInc
+   use mRadexInc,  only: ccrit, cdmol, deltav, fk, is_debug,fgaus, maxlev  &
+                     , minpop, xpop, taul, tex, gstat, xnu, aeinst, totalb &
+                     , ilow, iupp, eterm,crate, ctot, trj, totdens, tkin  &
+                     , thc, nline, nlev, miniter
+   use mSlatec,  only: lubksb, ludcmp
 
    implicit none
 !       include 'radex.inc'
 
 !      Set up rate matrix
-
+!f2py intent(in) niter
    integer, intent(in) :: niter            ! iteration counter
+   logical, intent(out) :: conv                 ! are we converged?
+
    integer ilev,jlev,klev   ! to loop over energy levels
    integer nplus            ! to solve statistical equilibrium
    integer iline            ! to loop over lines
@@ -32,7 +48,8 @@ SUBROUTINE matrix(niter,conv)
    integer nthick           ! counts optically thick lines
    integer nfat             ! counts highly optically thick lines
    integer nreduce          ! size of reduced rate matrix
-   integer indx,dsign       ! needed for NumRep equation solver
+   integer indx       ! needed for NumRep equation solver
+   real*8  dsign
 
    real*8 rhs(maxlev)           ! RHS of rate equation
    real*8 yrate(maxlev,maxlev)  ! rate matrix
@@ -42,8 +59,7 @@ SUBROUTINE matrix(niter,conv)
    real*8 hnu                   ! photon energy
    real*8 bnutex                ! line source function
    real*8 cddv                  ! N(mol) / delta V
-   real*8 beta,escprob          ! escape probability
-   external escprob
+   real*8 beta         ! escape probability
    real*8 bnu                   ! Planck function
    real*8 uarray(maxlev,maxlev) ! reduced rate matrix
    real*8 redcrit               ! reduction criterion
@@ -51,7 +67,6 @@ SUBROUTINE matrix(niter,conv)
    real*8 total                 ! to normalize populations
    real*8 tsum,thistex          ! to check convergence
 
-   logical conv                 ! are we converged?
 
 ! 	keep old population for underrelaxation procedure -- sb/fvdt 30nov2011
    real*8 xpopold(maxlev)
@@ -320,7 +335,7 @@ end subroutine matrix
 !      ------------------------------------------------------------
 
 FUNCTION ESCPROB(TAU)
-   use mRadexInc
+   use mRadexInc,  only: method, pi
 
    implicit none
 !       include 'radex.inc'
@@ -370,5 +385,6 @@ FUNCTION ESCPROB(TAU)
    endif
    escprob = beta
    return
-end function escprob
+endfunction escprob
 
+endmodule mMatrix

@@ -7,7 +7,7 @@ As of v0.2, created October 26, 2013, this package includes both a python
 wrapper of the command-line program and a direct wrapper of the fortran code
 created with f2py.
 
-
+- https://personal.sron.nl/~vdtak/radex/index.shtml
 - https://github.com/astropenguin/ndradex
 - https://github.com/fjdu/myRadex
 
@@ -44,6 +44,7 @@ Conda environment
         OR
     conda install numpy requests cython
     conda install jupyter matplotlib pandas
+    conda install astropy::astroquery
 
 
 Проверить работу без ошибок

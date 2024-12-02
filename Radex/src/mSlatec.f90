@@ -17,10 +17,22 @@
 !      ---------------------------------------------------------
 
 !      LUDCMP can be skipped entirely in SLATEC (SGEIR does both)
+module mSlatec
+
+     implicit none
+  
+     public :: lubksb, ludcmp, isamax
+     public :: sasum, sdsdot, r1mach
+  
+  
+     private
+
+contains
 
       SUBROUTINE ludcmp(a,n,np,indx,d)
       IMPLICIT NONE
-      INTEGER n,np,indx(n)
+      INTEGER n,np,indx
+     !  INTEGER n,np,indx(n)
       DOUBLE PRECISION d,a(np,np)
       continue
       return
@@ -30,7 +42,8 @@
 
       SUBROUTINE lubksb(a,n,np,indx,b)
       IMPLICIT NONE
-      INTEGER n,np,indx(np)
+      INTEGER n,np,indx
+     !  INTEGER n,np,indx(np)
       DOUBLE PRECISION a(np,np),b(np)
 
       DOUBLE PRECISION ra(n-1,n-1),rb(n-1)
@@ -175,7 +188,7 @@
      !     !C***END PROLOGUE  SGEIR
 
       INTEGER LDA,N,ITASK,IND,IWORK(*),INFO,J
-      DOUBLE PRECISION A(LDA,*),V(*),WORK(N,*),XNORM,DNORM,SDSDOT,SASUM,R1MACH
+      DOUBLE PRECISION A(LDA,*),V(*),WORK(N,*),XNORM,DNORM
       CHARACTER*8 XERN1, XERN2
      !     !C***FIRST EXECUTABLE STATEMENT  SGEIR
       IF (LDA.LT.N) THEN
@@ -1009,7 +1022,7 @@
       DOUBLE PRECISION A(LDA,*)
 
       DOUBLE PRECISION T
-      INTEGER ISAMAX,J,K,KP1,L,NM1
+      INTEGER J,K,KP1,L,NM1
 
 !      GAUSSIAN ELIMINATION WITH PARTIAL PIVOTING
 
@@ -3441,3 +3454,5 @@
      !C***FIRST EXECUTABLE STATEMENT  FDUMP
       RETURN
       END
+
+endmodule mSlatec

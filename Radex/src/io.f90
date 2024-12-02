@@ -1,5 +1,8 @@
 module io
-   use mRadexInc
+   use mRadexInc, only: density, xpop, taul, tex, spfreq,eup, qnum, xnu, totalb &
+                      , cdmol, backi, ilow, iupp, tkin, tbg, outfile, npart, molfile &
+                      , radat, logfile, fmin, fmax, deltav,maxpart, version, thc &
+                      , nline, method, kboltz, fk, fgaus, eps, clight
 
    implicit none
 
@@ -13,7 +16,7 @@ module io
 contains
 
    subroutine getinputs
-
+      
       implicit none
       !      include 'radex.inc'
 
@@ -165,7 +168,7 @@ contains
 !     ---------------------------------------------------------
 
    subroutine defaults
-      use mRadexInc
+      use mRadexInc, only: tkin, tbg, cdmol, deltav, density
 
       implicit none
 !      include 'radex.inc'
@@ -207,7 +210,7 @@ contains
 !     ------------------------------------------------------------
 
    subroutine output(niter)
-      use mRadexInc
+      use mMatrix,  only: escprob
 
       implicit none
 !      include 'radex.inc'
@@ -231,8 +234,7 @@ contains
       real*8 tback     ! background temperature
       real*8 ta        ! line antenna temperature
       real*8 tr        ! line radiation temperature
-      real*8 beta,escprob ! escape probability
-      external escprob
+      real*8 beta ! escape probability
       real*8 bnu       ! Planck function
       real*8 kkms      ! line integrated intensity (K km/s)
       real*8 ergs      ! line flux (erg / s / cm^2)

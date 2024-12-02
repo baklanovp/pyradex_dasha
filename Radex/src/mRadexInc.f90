@@ -24,7 +24,9 @@ module mRadexInc
 
    implicit none
 
-   public 
+   ! public :: radex_init
+
+    
 
    character*120 outfile,molfile,specref
    ! character*20 version
@@ -41,7 +43,6 @@ module mRadexInc
    !c c      parameter (method = 2)  ! expanding sphere (LVG)
    !c c      parameter (method = 3)  ! plane parallel slab (shock)
    ! common/setup/radat,method,version,logfile
-
    ! c     No user editing needed beyond this point
 
    ! c     ---------------------------------------------------------
@@ -192,6 +193,24 @@ module mRadexInc
    ! c     ---------------------------------------------------------
    ! c     End of common definitions
 
-   contains
-   
+   type setup_type
+      character(len=120) :: radat
+      character(len=20) :: version
+      character(len=20) :: logfile
+      integer :: method   
+   endtype setup_type
+
+   type(setup_type) :: setup
+
+   contains 
+
+   subroutine radex_init(self)
+      type(setup_type) :: self
+      self%radat = radat
+      self%version = version
+      self%logfile = logfile
+      self%method = method
+   endsubroutine radex_init
+
+
 end module mRadexInc

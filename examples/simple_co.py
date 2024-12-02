@@ -3,13 +3,14 @@ import sys, os
 from os.path import dirname, abspath, join
 
 ROOT_DIRECTORY = dirname(dirname(abspath(__file__)))
-print (ROOT_DIRECTORY)
-
-sys.path.append(join(ROOT_DIRECTORY,'pyradex'))
-# sys.path.append(os.path.expanduser('~/Sn/Release/python/pyradex_dasha/pyradex'))
+sys.path.append(join(ROOT_DIRECTORY))
 import pyradex
 
-R = pyradex.Radex(column=1e16)
+R = pyradex.Radex(column=1e16,temperature=20, abundance=1e-9)
+# print(R)
+
+
+
 R.maxiter=1000
 #print R.radex.impex.molfile,R.molpath
 

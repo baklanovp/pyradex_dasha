@@ -117,11 +117,10 @@ endif
 #FFLAGS += -Wall -O2
 # there may be other options of course ...
 FILES =  cla.f90 mRadexInc.f90 \
-         io.f90 readdata.f90 matrix.f90 background.f90 slatec.f90 main.f90 
+         mSlatec.f90  mMatrix.f90 io.f90 mReaddata.f90 background.f90 main.f90 
 TEMP := $(FILES:.f=.o)
 OBJECTS := $(patsubst %.f90,%.o, $(TEMP))
 
-# OBJECTS = mRadexInc.o main.o io.o readdata.o matrix.o background.o slatec.o
 EXEC    = radex
 
 .IGNORE:
@@ -163,7 +162,7 @@ radex: $(OBJECTS) $(EXEC)  ## Build radex
 	@ls -l $(EXEC)
 
 f2py:  ## To make the wrapper with f2py
-	$(for2py) -c -m radex --fcompiler=gfortran   *.f90
+	$(for2py) -c -m radex   $(FILES)
 
 
 install:   ## Install radex

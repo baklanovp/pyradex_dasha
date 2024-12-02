@@ -14,8 +14,6 @@
 
 module background
 
-   use mRadexInc
-
    implicit none
 
    public :: backrad
@@ -27,6 +25,8 @@ contains
 
 
    subroutine backrad
+      use mRadexInc, only: maxline, eps, fk, nline, tbg, thc, is_debug, xnu &
+                        , backi, trj, totalb
 
       !!  This routine returns the intensity of continuum radiation that is
       !!  felt by the radiating molecules.  Intensity is computed at the
@@ -232,7 +232,7 @@ contains
       !! neighborhood of Mathis, Mezger, and Panagia (1983, Astron.
       !! Astrophys., 128, 212).
 
-      use mRadexInc
+      use mRadexInc, only:  fk, nline, thc, xnu,backi, trj, totalb
 
       implicit none
 

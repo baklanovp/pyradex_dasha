@@ -322,8 +322,8 @@ class Radex(RadiativeTransferApproximator):
         log.debug(f"Setting temperature to {temperature}")
         # This MUST happen before density is set, otherwise OPR will be
         # incorrectly set.
-        self.radex.cphys.tkin = unitless(temperature)
-        log.debug(f"Temperature = {self.radex.cphys.tkin}")
+        self.radex.mradexinc.tkin = unitless(temperature)
+        log.debug(f"Temperature = {self.radex.mradexinc.tkin}")
 
         # density warnings will occur if a generic (number-based) density is
         # used.  It can be suppressed more directly by using a dictionary-style
@@ -407,7 +407,7 @@ class Radex(RadiativeTransferApproximator):
         # This MUST happen before density is set, otherwise OPR will be
         # incorrectly set.
         if temperature is not None:
-            self.radex.cphys.tkin = unitless(temperature)
+            self.radex.mradexinc.tkin = unitless(temperature)
 
         # if the density is a specified parameter, we only want to warn that it
         # is being set once
@@ -457,12 +457,12 @@ class Radex(RadiativeTransferApproximator):
 
     def _set_parameters(self):
 
-        #self.radex.cphys.cdmol = self.column
-        #self.radex.cphys.tkin = self.temperature
+        #self.radex.mradexinc.cdmol = self.column
+        #self.radex.mradexinc.tkin = self.temperature
         if hasattr(self.deltav, 'to'):
-            self.radex.cphys.deltav = unitless(self.deltav.to(self._u_cms))
+            self.radex.mradexinc.deltav = unitless(self.deltav.to(self._u_cms))
         else:
-            self.radex.cphys.deltav = self.deltav * (self._u_cms.to(self._u_kms))
+            self.radex.mradexinc.deltav = self.deltav * (self._u_cms.to(self._u_kms))
 
         # these parameters are only used for outputs and therefore can be ignored
         self.radex.freq.fmin = 0
@@ -484,13 +484,13 @@ class Radex(RadiativeTransferApproximator):
     @property
     def density(self):
 
-        d = {'H2':self.radex.cphys.density[0],
-             'pH2':self.radex.cphys.density[1],
-             'oH2':self.radex.cphys.density[2],
-             'e':self.radex.cphys.density[3],
-             'H':self.radex.cphys.density[4],
-             'He':self.radex.cphys.density[5],
-             'H+':self.radex.cphys.density[6]}
+        d = {'H2':self.radex.mradexinc.density[0],
+             'pH2':self.radex.mradexinc.density[1],
+             'oH2':self.radex.mradexinc.density[2],
+             'e':self.radex.mradexinc.density[3],
+             'H':self.radex.mradexinc.density[4],
+             'He':self.radex.mradexinc.density[5],
+             'H+':self.radex.mradexinc.density[6]}
 
         for k in d:
             d[k] = u.Quantity(d[k], self._u_cc)
@@ -530,20 +530,20 @@ class Radex(RadiativeTransferApproximator):
             #    raise ValueError("If o-H2 density is specified, p-H2 must also be.")
             # TODO: look up whether RADEX uses density[0] if density[1] and [2] are specified
             # (it looks like the answer is "no" based on a quick test)
-            #self.radex.cphys.density[0] = 0 # collider_densities['OH2'] + collider_densities['PH2']
+            #self.radex.mradexinc.density[0] = 0 # collider_densities['OH2'] + collider_densities['PH2']
             # PARA is [1], ORTHO is [2]
             # See lines 91, 92 of io.f
             if 'PH2' in collider_densities:
-                self.radex.cphys.density[1] = collider_densities['PH2']
+                self.radex.mradexinc.density[1] = collider_densities['PH2']
             if 'OH2' in collider_densities:
-                self.radex.cphys.density[2] = collider_densities['OH2']
+                self.radex.mradexinc.density[2] = collider_densities['OH2']
             self._use_thermal_opr = False
         elif 'H2' in collider_densities:
             warnings.warn("Using a default ortho-to-para ratio (which "
                           "will only affect species for which independent "
                           "ortho & para collision rates are given)")
             self._use_thermal_opr = True
-            #self.radex.cphys.density[0] = collider_densities['H2']
+            #self.radex.mradexinc.density[0] = collider_densities['H2']
 
             T = unitless(self.temperature)
             if T > 0:
@@ -553,27 +553,27 @@ class Radex(RadiativeTransferApproximator):
                 opr = 3.0
             fortho = opr/(1+opr)
             log.debug("Set OPR to {0} and fortho to {1}".format(opr,fortho))
-            self.radex.cphys.density[1] = collider_densities['H2']*(1-fortho)
-            self.radex.cphys.density[2] = collider_densities['H2']*(fortho)
+            self.radex.mradexinc.density[1] = collider_densities['H2']*(1-fortho)
+            self.radex.mradexinc.density[2] = collider_densities['H2']*(fortho)
 
         # RADEX relies on n(H2) = n(oH2) + n(pH2)
         # We have set n(oH2) and n(pH2) above
         vc = [x.lower() for x in self.valid_colliders]
         if 'h2' in vc:
-            self.radex.cphys.density[0] = self.radex.cphys.density[1:3].sum()
-            self.radex.cphys.density[1] = 0
-            self.radex.cphys.density[2] = 0
+            self.radex.mradexinc.density[0] = self.radex.mradexinc.density[1:3].sum()
+            self.radex.mradexinc.density[1] = 0
+            self.radex.mradexinc.density[2] = 0
         elif 'oh2' in vc or 'ph2' in vc:
-            self.radex.cphys.density[0] = 0
+            self.radex.mradexinc.density[0] = 0
 
-        self.radex.cphys.density[3] = collider_densities['E']
-        self.radex.cphys.density[4] = collider_densities['H']
-        self.radex.cphys.density[5] = collider_densities['HE']
-        self.radex.cphys.density[6] = collider_densities['H+']
+        self.radex.mradexinc.density[3] = collider_densities['E']
+        self.radex.mradexinc.density[4] = collider_densities['H']
+        self.radex.mradexinc.density[5] = collider_densities['HE']
+        self.radex.mradexinc.density[6] = collider_densities['H+']
 
         # skip H2 when computing by assuming OPR correctly distributes ortho & para
         # It's not obvious that RADEX does this correctly in readdata.f
-        self.radex.cphys.totdens = self.radex.cphys.density.sum()
+        self.radex.mradexinc.totdens = self.radex.mradexinc.density.sum()
 
         # Unfortunately,
         # must re-read molecular file and re-interpolate to new density
@@ -615,85 +615,86 @@ class Radex(RadiativeTransferApproximator):
         The total density *by number of particles*
         The *mass density* can be dramatically different!
         """
-        return u.Quantity(self.radex.cphys.totdens, self._u_cc)
+        return u.Quantity(self.radex.mradexinc.totdens, self._u_cc)
 
 
     @property
     def opr(self):
-        return self.radex.cphys.density[1]/self.radex.cphys.density[2]
+        return self.radex.mradexinc.density[1]/self.radex.mradexinc.density[2]
 
     @property
     def molpath(self):
-        log.debug(f"Computing molpath from molfile = {self.radex.impex.molfile}")
+        log.debug(f"Computing molpath from molfile = {self.radex.mradexinc.molfile}")
         try:
-            result = b"".join(self.radex.impex.molfile).strip()
+            result = b"".join(self.radex.mradexinc.molfile).strip()
         except TypeError:
-            result = self.radex.impex.molfile.tostring().strip()
+            result = self.radex.mradexinc.molfile.tostring().strip()
         # this hack may be wrong; the underlying dtype appears to be corrupt
         return result.lstrip(b"b'") # strip "bytes" junk that appears to be added by numpy
 
     @molpath.setter
     def molpath(self, molfile):
-        log.debug(f"Setting molpath to {molfile} (self.radex.impex.molfile={self.radex.impex.molfile})")
+        log.debug(f"Setting molpath to {molfile} (self.radex.mradexinc.molfile={self.radex.mradexinc.molfile})")
         if "~" in molfile:
             molfile = os.path.expanduser(molfile)
         if PYVERSION == 3:
             try:
-                self.radex.impex.molfile[:] = np.bytes_([""]*len(self.radex.impex.molfile))
+                self.radex.mradexinc.molfile[:] = np.bytes_([""]*len(self.radex.mradexinc.molfile))
             except TypeError as ex:
-                self.radex.impex.molfile = " " * self.radex.impex.molfile.dtype.itemsize
+                self.radex.mradexinc.molfile = " " * self.radex.mradexinc.molfile.dtype.itemsize
         else:
-            self.radex.impex.molfile[:] = ""
-        log.debug(f"Verifying collision rates for molfile={molfile} from impex.molfile={self.radex.impex.molfile}")
+            self.radex.mradexinc.molfile[:] = ""
+        log.debug(f"Verifying collision rates for molfile={molfile} from mradexinc.molfile={self.radex.mradexinc.molfile}")
         utils.verify_collisionratefile(molfile)
         try:
-            self.radex.impex.molfile[:len(molfile)] = molfile
+            self.radex.mradexinc.molfile[:len(molfile)] = molfile
         except IndexError:
-            self.radex.impex.molfile = molfile + " " * (self.radex.impex.molfile.dtype.itemsize - len(molfile))
+            self.radex.mradexinc.molfile = molfile + " " * (self.radex.mradexinc.molfile.dtype.itemsize - len(molfile))
 
     @property
     def outfile(self):
-        return self.radex.impex.outfile
+        return self.radex.mradexinc.outfile
 
     @outfile.setter
     def outfile(self, outfile):
         if PYVERSION == 3:
             try:
-                self.radex.impex.outfile[:] = np.bytes_([""]*len(self.radex.impex.outfile))
+                self.radex.mradexinc.outfile[:] = np.bytes_([""]*len(self.radex.mradexinc.outfile))
             except TypeError as ex:
-                self.radex.impex.outfile = " " * self.radex.impex.outfile.dtype.itemsize
+                self.radex.mradexinc.outfile = " " * self.radex.mradexinc.outfile.dtype.itemsize
         else:
-            self.radex.impex.outfile[:] = ""
+            self.radex.mradexinc.outfile[:] = ""
         try:
-            self.radex.impex.outfile[:len(outfile)] = outfile
+            self.radex.mradexinc.outfile[:len(outfile)] = outfile
         except IndexError:
-            self.radex.impex.outfile = outfile + " " * (self.radex.impex.outfile.dtype.itemsize - len(outfile))
+            self.radex.mradexinc.outfile = outfile + " " * (self.radex.mradexinc.outfile.dtype.itemsize - len(outfile))
 
     @property
     def logfile(self):
-        return self.radex.setup.logfile
+        return self.radex.mradexinc.logfile
 
     @logfile.setter
     def logfile(self, logfile):
         if PYVERSION == 3:
             try:
-                self.radex.setup.logfile[:] = np.bytes_([""]*len(self.radex.setup.logfile))
+                self.radex.mradexinc.logfile[:] = np.bytes_([""]*len(self.radex.mradexinc.logfile))
             except TypeError as ex:
-                self.radex.setup.logfile = " " * self.radex.setup.logfile.dtype.itemsize
+                self.radex.mradexinc.logfile = " " * self.radex.mradexinc.logfile.dtype.itemsize
         else:
-            self.radex.setup.logfile[:] = ""
+            self.radex.mradexinc.logfile[:] = ""
         try:
-            self.radex.setup.logfile[:len(logfile)] = logfile
+            self.radex.mradexinc.logfile[:len(logfile)] = logfile
         except IndexError:
-            self.radex.setup.logfile = logfile + " " * (self.radex.setup.logfile.dtype.itemsize - len(logfile))
+            self.radex.mradexinc.logfile = logfile + " " * (self.radex.mradexinc.logfile.dtype.itemsize - len(logfile))
 
     @property
     def datapath(self):
         try:
-            return os.path.expanduser(b"".join(self.radex.setup.radat).strip()).decode('utf-8')
+            # print(dir(self.radex))
+            return os.path.expanduser(b"".join(self.radex.mradexinc.radat).strip()).decode('utf-8')
         except TypeError:
             # occurs if radat is S120 instead of array of S1
-            return os.path.expanduser((self.radex.setup.radat.tostring().decode('utf-8').strip()))
+            return os.path.expanduser((self.radex.mradexinc.radat.tostring().decode('utf-8').strip()))
 
 
     @datapath.setter
@@ -704,34 +705,34 @@ class Radex(RadiativeTransferApproximator):
         # self.radex data path not needed if molecule given as full path
         if PYVERSION == 3:
             try:
-                self.radex.setup.radat[:] = np.bytes_([""] * len(self.radex.setup.radat))
+                self.radex.mradexinc.radat[:] = np.bytes_([""] * len(self.radex.mradexinc.radat))
             except TypeError as ex:
                 # now radat gets treated as a single S120 instead of an array of S1s
-                self.radex.setup.radat = " " * self.radex.setup.radat.dtype.itemsize
+                self.radex.mradexinc.radat = " " * self.radex.mradexinc.radat.dtype.itemsize
         else:
-            self.radex.setup.radat[:] = ""
+            self.radex.mradexinc.radat[:] = ""
         # there is dangerous magic here: radat needs to be interpreted as an array,
         # but you can't make it an array of characters easily...
         try:
-            self.radex.setup.radat[:len(radat)] = radat
+            self.radex.mradexinc.radat[:len(radat)] = radat
         except IndexError:
             # in python3, this might just work, where the above doesn't?
             # (this works if RADAT is an S120)
             # the added space is because the right and left side must have *exactly* the same size
-            self.radex.setup.radat = radat + " " * (self.radex.setup.radat.dtype.itemsize - len(radat))
+            self.radex.mradexinc.radat = radat + " " * (self.radex.mradexinc.radat.dtype.itemsize - len(radat))
 
 
     @property
     def escapeProbGeom(self):
         mdict = {2:'lvg',1:'sphere',3:'slab'}
-        return mdict[int(self.radex.setup.method)]
+        return mdict[int(self.radex.mradexinc.method)]
 
     @escapeProbGeom.setter
     def escapeProbGeom(self, escapeProbGeom):
         mdict = {'lvg':2,'sphere':1,'slab':3}
         if escapeProbGeom not in mdict:
             raise ValueError("Invalid escapeProbGeom, must be one of "+",".join(mdict))
-        self.radex.setup.method = mdict[escapeProbGeom]
+        self.radex.mradexinc.method = mdict[escapeProbGeom]
 
 
     @property
@@ -756,7 +757,7 @@ class Radex(RadiativeTransferApproximator):
 
     @property
     def temperature(self):
-        return u.Quantity(self.radex.cphys.tkin, u.K)
+        return u.Quantity(self.radex.mradexinc.tkin, u.K)
 
     @temperature.setter
     def temperature(self, tkin):
@@ -767,17 +768,17 @@ class Radex(RadiativeTransferApproximator):
 
         if tkin <= 0 or tkin > 1e4:
             raise ValueError('Must have kinetic temperature > 0 and < 10^4 K')
-        self.radex.cphys.tkin = tkin
+        self.radex.mradexinc.tkin = tkin
 
         if not os.path.exists(self.molpath):
             raise IOError("File not found: %s" % self.molpath)
         # must re-read molecular file and re-interpolate to new temperature
         self._validate_colliders()
-        #log.info("before DENS:"+str(self.radex.cphys.density))
-        #log.info("before TOTDENS:"+str(self.radex.cphys.totdens))
+        #log.info("before DENS:"+str(self.radex.mradexinc.density))
+        #log.info("before TOTDENS:"+str(self.radex.mradexinc.totdens))
         self.radex.readdata()
-        #log.info("after DENS:"+str(self.radex.cphys.density))
-        #log.info("after TOTDENS:"+str(self.radex.cphys.totdens))
+        #log.info("after DENS:"+str(self.radex.mradexinc.density))
+        #log.info("after TOTDENS:"+str(self.radex.mradexinc.totdens))
 
         if self._use_thermal_opr:
             # Reset the density to a thermal value
@@ -796,7 +797,7 @@ class Radex(RadiativeTransferApproximator):
 
     @property
     def column_per_bin(self):
-        return u.Quantity(self.radex.cphys.cdmol, self._u_sc)
+        return u.Quantity(self.radex.mradexinc.cdmol, self._u_sc)
 
     @column_per_bin.setter
     def column_per_bin(self, col):
@@ -804,7 +805,7 @@ class Radex(RadiativeTransferApproximator):
             col = unitless(u.Quantity(col, self._u_sc))
         if col < 1e5 or col > 1e25:
             raise ValueError("Extremely low or extremely high column.")
-        self.radex.cphys.cdmol = col
+        self.radex.mradexinc.cdmol = col
 
         col = u.Quantity(col, self._u_sc)
         if not self._is_locked:
@@ -899,7 +900,7 @@ class Radex(RadiativeTransferApproximator):
 
     @property
     def tbg(self):
-        return u.Quantity(self.radex.cphys.tbg, u.K)
+        return u.Quantity(self.radex.mradexinc.tbg, u.K)
 
     @tbg.setter
     def tbg(self, tbg):
@@ -909,7 +910,7 @@ class Radex(RadiativeTransferApproximator):
         #print("Set TBG=%f" % tbg)
         if hasattr(tbg, 'value'):
             tbg = unitless(u.Quantity(tbg, u.K))
-        self.radex.cphys.tbg = tbg
+        self.radex.mradexinc.tbg = tbg
         self.radex.backrad()
 
     def run_radex(self, silent=True, reuse_last=False, reload_molfile=True,
