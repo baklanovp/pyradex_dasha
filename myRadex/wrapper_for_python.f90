@@ -5,19 +5,18 @@ implicit none
 
 logical :: flag_good
 
-integer, parameter :: n_item_column = 21
+integer, parameter :: n_item_column = 22, len_column_names=128, len_molecule_name=32
 
 character(len=64) :: &
-    About = 'Author: Fujun Du (fujun.du@gmail.com, fdu@umich.edu)'
+    About = 'Author: Fujun Du (fjdu@pmo.ac.cn, fujun.du@gmail.com)'
 
-character(len=128) :: column_names = &
+character(len=len_column_names) :: column_names = &
     'iup' //' '// 'ilow' //' '// 'Eup' //' '// 'freq' //' '// 'lam' //' ' &
     // 'Tex' //' '// 'tau' //' '// 'Tr' //' '// &
-    'fup' //' '// 'flow' //' '// 'flux_K' //' '// 'flux' //' '// 'beta' //' ' &
-    // 'Jnu' //' '// 'gup' //' '// 'glow' //' '// 'Aul' //' '// 'Bul' //' '// 'Blu'&
-    //' '// 'Jback' //' '// 'flux_dens' 
+    'fup' //' '// 'flow' //' '// 'flux_Kkms' //' '// 'flux_int' // ' ' // 'flux_Jy' //' '// 'beta' //' ' &
+    // 'Jnu' //' '// 'gup' //' '// 'glow' //' '// 'Aul' //' '// 'Bul' //' '// 'Blu' // ' ' // 'n_crit' // ' ' // 'n_crit_old'
 
-character(len=32) :: molecule_name = ''
+character(len=len_molecule_name) :: molecule_name = ''
 
 contains
 
@@ -25,12 +24,62 @@ contains
 subroutine config_basic(dir_transition_rates, filename_molecule, &
     Tbg, &
     verbose, &
-    n_levels, n_item, n_transitions)
-  use my_radex
+    recalculateFreqWithEupElow, iLevel_subtract_one, &
+    max_code_run_time, &
+    max_evol_time, &
+    rtol, atol, &
+    solve_method, &
+    f_occupation_init_method, &
+    n_levels, n_item, n_transitions, n_partners)
+  !
+  use my_radex, only: rdxx_cfg, a_mol_using, my_radex_prepare
+  !
   character(len=*), intent(in) :: dir_transition_rates, filename_molecule
   double precision, intent(in) :: Tbg
-  logical, intent(in) :: verbose
-  integer, intent(out) :: n_levels, n_item, n_transitions
+  logical, intent(in), optional :: verbose
+  logical, intent(in), optional :: recalculateFreqWithEupElow, iLevel_subtract_one
+  double precision, intent(in), optional :: max_code_run_time, max_evol_time, rtol, atol
+  character(len=*), intent(in), optional :: solve_method, f_occupation_init_method
+  integer, intent(out) :: n_levels, n_item, n_transitions, n_partners
+  logical verbs
+  !
+  verbs = .true.
+  !
+  if (present(verbose)) then
+    verbs = verbose
+  end if
+  !
+  rdxx_cfg%verbose = verbs
+  !
+  if (present(recalculateFreqWithEupElow)) then
+    rdxx_cfg%recalculateFreqWithEupElow = recalculateFreqWithEupElow
+  end if
+  if (present(iLevel_subtract_one)) then
+    rdxx_cfg%iLevel_subtract_one = iLevel_subtract_one
+  end if
+  !
+  if (present(max_code_run_time)) then
+    rdxx_cfg%max_code_run_time = max_code_run_time
+  end if
+  if (present(max_evol_time)) then
+    rdxx_cfg%max_evol_time = max_evol_time
+  end if
+  if (present(rtol)) then
+    rdxx_cfg%rtol = rtol
+  end if
+  if (present(atol)) then
+    rdxx_cfg%atol = atol
+  end if
+  if (present(solve_method)) then
+    rdxx_cfg%solve_method = solve_method
+  else
+    write(*, '(A)') "solve_method not provided"
+  end if
+  if (present(f_occupation_init_method)) then
+    rdxx_cfg%f_occupation_init_method = f_occupation_init_method
+  else
+    write(*, '(A)') "f_occupation_init_method not provided"
+  end if
   !
   rdxx_cfg%dir_transition_rates = dir_transition_rates
   rdxx_cfg%filename_molecule = filename_molecule
@@ -38,10 +87,8 @@ subroutine config_basic(dir_transition_rates, filename_molecule, &
   rdxx_cfg%nTbg = 1
   rdxx_cfg%Tbg(1) = Tbg
   !
-  rdxx_cfg%verbose = verbose
-  !
-  if (verbose) then
-    write(*, '(A, A)') 'About this tool: ', About
+  if (verbs) then
+    write(*, '("Input path: ", 2A)') trim(dir_transition_rates), trim(filename_molecule)
     write(*, '(A, A)') 'Column names of the output: ', column_names
   end if
   !
@@ -51,8 +98,9 @@ subroutine config_basic(dir_transition_rates, filename_molecule, &
   n_item = n_item_column
   n_transitions = a_mol_using%rad_data%n_transition
   molecule_name = a_mol_using%name_molecule
+  n_partners = a_mol_using%colli_data%n_partner
   !
-  if (verbose) then
+  if (verbs) then
     write(*, '(A, A)') 'Molecule name: ', molecule_name
   end if
 end subroutine config_basic
@@ -62,36 +110,80 @@ subroutine run_one_params( &
     Tkin, dv_CGS, &
     dens_X_CGS, Ncol_X_CGS, &
     H2_density_CGS, HI_density_CGS, &
-    oH2_density_CGS, pH2_density_CGS, &
+    oH2_density_CGS, pH2_densty_CGS, &
     HII_density_CGS, Electron_density_CGS, &
     n_levels, n_item, n_transitions, &
-    geotype, &
-    energies, f_occupations, data_transitions, cooling_rate)
+    energies, f_occupations, data_transitions, cooling_rate, &
+    donotsolve, collisioPartnerCrit, &
+    Tbg, beam_FWHM_in_arcsec, max_code_run_time, max_evol_time, &
+    rtol, atol, solve_method, f_occupation_init_method, geotype)
   !
   use my_radex
   use statistic_equilibrium
   !
   double precision, intent(in) :: Tkin, dv_CGS, dens_X_CGS, Ncol_X_CGS, &
     H2_density_CGS, HI_density_CGS, &
-    oH2_density_CGS, pH2_density_CGS, &
+    oH2_density_CGS, pH2_densty_CGS, &
     HII_density_CGS, Electron_density_CGS
   !
   integer, intent(in) :: n_levels, n_item, n_transitions
-  character(len=10), intent(in) :: geotype
   double precision, dimension(n_levels), intent(out) :: energies, f_occupations
   double precision, dimension(n_item, n_transitions), intent(out) :: data_transitions
   double precision, intent(out) :: cooling_rate
   !
-  double precision fup, flow, gup, glow, Tex, Tr, flux_CGS, flux_K_km_s
+  logical, intent(in), optional :: donotsolve
+  integer, intent(in), optional :: collisioPartnerCrit
+  double precision, intent(in), optional :: Tbg, beam_FWHM_in_arcsec, max_code_run_time, max_evol_time, rtol, atol
+  character(len=*), intent(in), optional :: solve_method, f_occupation_init_method, geotype
+  !
+  type(type_rad_transition) r
+  double precision fup, flow, gup, glow, Tex, Tr, flux_CGS, flux_K_km_s, flux_Jy
   double precision Inu_t, tau, t1, t2
-  integer i
+  double precision beam_area
+  double precision critical_density, critical_density_old
+  integer i, iupSav, ilowSav
+  logical donotsolve_, makeLUT
+  integer iCollPartner
+  !
+  makeLUT = .false.
+  if (present(Tbg)) then
+    if (Tbg .ne. rdxx_cfg%Tbg(1)) then
+      rdxx_cfg%Tbg(1) = Tbg
+      makeLUT = .true.
+    end if
+  end if
+  if (present(beam_FWHM_in_arcsec)) then
+    rdxx_cfg%beam_FWHM_in_arcsec = beam_FWHM_in_arcsec
+  end if
+  if (present(max_code_run_time)) then
+    rdxx_cfg%max_code_run_time = max_code_run_time
+  end if
+  if (present(max_evol_time)) then
+    rdxx_cfg%max_evol_time = max_evol_time
+  end if
+  if (present(rtol)) then
+    rdxx_cfg%rtol = rtol
+  end if
+  if (present(atol)) then
+    rdxx_cfg%atol = atol
+  end if
+  if (present(solve_method)) then
+    rdxx_cfg%solve_method = solve_method
+  end if
+  if (present(f_occupation_init_method)) then
+    rdxx_cfg%f_occupation_init_method = f_occupation_init_method
+  end if
+  if (present(geotype)) then
+    rdxx_cfg%geotype = adjustl(geotype)
+  end if
+  !
+  call my_radex_prepare(.false., makeLUT)
   !
   rdxx_cfg%nTkin   = 1
   rdxx_cfg%ndv     = 1
   rdxx_cfg%nn_x    = 1
   rdxx_cfg%nNcol_x = 1
   rdxx_cfg%ndens   = 1
-  rdxx_cfg%geotype = geotype
   !
   rdxx_cfg%iTkin   = 1
   rdxx_cfg%idv     = 1
@@ -107,12 +199,32 @@ subroutine run_one_params( &
   rdxx_cfg%n_H2(1) = H2_density_CGS
   rdxx_cfg%n_HI(1) = HI_density_CGS
   rdxx_cfg%n_oH2(1) = oH2_density_CGS
-  rdxx_cfg%n_pH2(1) = pH2_density_CGS
+  rdxx_cfg%n_pH2(1) = pH2_densty_CGS
   rdxx_cfg%n_Hplus(1) = HII_density_CGS
   rdxx_cfg%n_E(1) = Electron_density_CGS
+
+  if (present(donotsolve)) then
+    donotsolve_ = donotsolve
+  else
+    donotsolve_ = .false.
+  end if
+  !
+  iCollPartner = 1
+  if (present(collisioPartnerCrit)) then
+    iCollPartner = collisioPartnerCrit
+  end if
   !
   call my_radex_prepare_molecule
-  call statistic_equil_solve
+  if (.not. donotsolve_) then
+    if (trim(rdxx_cfg%solve_method) .eq. 'ODE') then
+      call statistic_equil_solve
+    else if (trim(rdxx_cfg%solve_method) .eq. 'Newton') then
+      call statistic_equil_solve_Newton
+    else
+      write(*,*) 'Nothing is done because of unknown solving method: ', trim(rdxx_cfg%solve_method)
+    end if
+  end if
+  write(*,'(A//)') 'Finish solving...'
   call calc_cooling_rate
   !
   flag_good = statistic_equil_params%is_good
@@ -126,7 +238,7 @@ subroutine run_one_params( &
   rdxx_cfg%freqmax = 1D99
   !
   do i=1, n_transitions
-    associate(r => a_mol_using%rad_data%list(i))
+      r = a_mol_using%rad_data%list(i)
       if ((r%freq .lt. rdxx_cfg%freqmin) .or. &
           (r%freq .gt. rdxx_cfg%freqmax)) then
         cycle
@@ -151,17 +263,126 @@ subroutine run_one_params( &
         (2D0 * r%freq**2 * phy_kBoltzmann_CGS)
       flux_K_km_s = Tr * a_mol_using%dv / 1D5 * phy_GaussFWHM_c
       flux_CGS = (Inu_t - r%J_cont_bg) * &
-        a_mol_using%dv * r%freq / phy_SpeedOfLight_CGS
+        a_mol_using%dv * r%freq / phy_SpeedOfLight_CGS * (4D0 * phy_Pi * phy_GaussFWHM_c)
+      beam_area = FWHM_to_area(rdxx_cfg%beam_FWHM_in_arcsec)
+      flux_Jy = (Inu_t - r%J_cont_bg) * beam_area / phy_jansky2CGS
+      !
+      iupSav = r%iup
+      ilowSav = r%ilow
+      if (rdxx_cfg%iLevel_subtract_one) then
+        iupSav = r%iup - 1
+        ilowSav = r%ilow - 1
+      end if
+      !
+      call calc_critical_density_for_one_transition(i, tau)
+      critical_density = a_mol_using%rad_data%list(i)%critical_densities(iCollPartner)
+      call calc_critical_density_old_def_for_one_transition(i, tau)
+      critical_density_old = a_mol_using%rad_data%list(i)%critical_densities(iCollPartner)
       !
       data_transitions(:, i) = &
         (/ &
-        dble(r%iup-1), dble(r%ilow-1), r%Eup, r%freq, r%lambda, Tex, r%tau, Tr, &
-        fup, flow, flux_K_km_s, flux_CGS, r%beta, &
-        r%J_ave, gup, glow, r%Aul, r%Bul, r%Blu, r%J_cont_bg, Inu_t /)
-    end associate
+        dble(iupSav), dble(ilowSav), r%Eup, r%freq, r%lambda, Tex, r%tau, Tr, &
+        fup, flow, flux_K_km_s, flux_CGS, flux_Jy, r%beta, &
+        r%J_ave, gup, glow, r%Aul, r%Bul, r%Blu, critical_density, critical_density_old /)
   end do
-  !
 end subroutine run_one_params
 
+
+subroutine run_one_params_geometry( &
+    Tkin, dv_CGS, &
+    dens_X_CGS, Ncol_X_CGS, &
+    H2_density_CGS, HI_density_CGS, &
+    oH2_density_CGS, pH2_densty_CGS, &
+    HII_density_CGS, Electron_density_CGS, &
+    n_levels, n_item, n_transitions, &
+    geotype, &
+    donotsolve, &
+    collisioPartnerCrit, &
+    energies, f_occupations, data_transitions, cooling_rate)
+  !
+  use my_radex
+  use statistic_equilibrium
+  !
+  double precision, intent(in) :: Tkin, dv_CGS, dens_X_CGS, Ncol_X_CGS, &
+    H2_density_CGS, HI_density_CGS, &
+    oH2_density_CGS, pH2_densty_CGS, &
+    HII_density_CGS, Electron_density_CGS
+  !
+  integer, intent(in) :: n_levels, n_item, n_transitions
+  character(len=16), intent(in) :: geotype
+  logical, intent(in), optional :: donotsolve
+  integer, intent(in), optional :: collisioPartnerCrit
+  !
+  double precision, dimension(n_levels), intent(out) :: energies, f_occupations
+  double precision, dimension(n_item, n_transitions), intent(out) :: data_transitions
+  double precision, intent(out) :: cooling_rate
+  logical donotsolve_
+  integer iCollPartner
+  !
+  if (present(donotsolve)) then
+    donotsolve_ = donotsolve
+  else
+    donotsolve_ = .false.
+  end if
+  !
+  iCollPartner = 1
+  if (present(collisioPartnerCrit)) then
+    iCollPartner = collisioPartnerCrit
+  end if
+  !
+  rdxx_cfg%geotype = adjustl(geotype)
+  !
+  call run_one_params( &
+    Tkin, dv_CGS, &
+    dens_X_CGS, Ncol_X_CGS, &
+    H2_density_CGS, HI_density_CGS, &
+    oH2_density_CGS, pH2_densty_CGS, &
+    HII_density_CGS, Electron_density_CGS, &
+    n_levels, n_item, n_transitions, &
+    energies, f_occupations, data_transitions, cooling_rate, donotsolve_, iCollPartner)
+end subroutine run_one_params_geometry
+
+
+subroutine calc_critical_density(tau, n_partner, n_transitions, &
+    critical_densities, iup, ilow)
+  use statistic_equilibrium
+  double precision, intent(in) :: tau
+  integer, intent(in) :: n_partner, n_transitions
+  double precision, dimension(n_partner,n_transitions), intent(out) :: critical_densities
+  integer, dimension(n_transitions), intent(out) :: iup, ilow
+  integer ipt, itr
+  call calc_critical_density_f(tau)
+  do ipt=1, n_partner
+    do itr=1, n_transitions
+      critical_densities(ipt, itr) = a_mol_using%rad_data%list(itr)%critical_densities(ipt)
+    end do
+  end do
+  do itr=1, n_transitions
+    iup(itr) = a_mol_using%rad_data%list(itr)%iup
+    ilow(itr) = a_mol_using%rad_data%list(itr)%ilow
+  end do
+end subroutine calc_critical_density
+
+
+
+subroutine calc_critical_density_old_def(tau, n_partner, n_transitions, &
+    critical_densities, iup, ilow)
+  use statistic_equilibrium
+  double precision, intent(in) :: tau
+  integer, intent(in) :: n_partner, n_transitions
+  double precision, dimension(n_partner,n_transitions), intent(out) :: critical_densities
+  integer, dimension(n_transitions), intent(out) :: iup, ilow
+  integer ipt, itr
+  call calc_critical_density_old_def_f(tau)
+  do ipt=1, n_partner
+    do itr=1, n_transitions
+      critical_densities(ipt, itr) = a_mol_using%rad_data%list(itr)%critical_densities(ipt)
+    end do
+  end do
+  do itr=1, n_transitions
+    iup(itr) = a_mol_using%rad_data%list(itr)%iup
+    ilow(itr) = a_mol_using%rad_data%list(itr)%ilow
+  end do
+end subroutine calc_critical_density_old_def
 
 end module myradex_wrapper

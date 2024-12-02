@@ -28,16 +28,18 @@ integer, parameter :: ndim_cfg_vec = 100
 integer, parameter :: ndim_Tbg = 8
 
 type :: type_rdxx_cfg
-  character(len=128) :: dir_transition_rates = './'
-  character(len=128) :: dir_save = './'
-  character(len=128) :: filename_molecule = '12C16O_H2.dat'
-  character(len=128) :: filename_save = 'output.dat'
+  character(len=128) :: dir_transition_rates = ''
+  character(len=128) :: dir_save = ''
+  character(len=128) :: filename_molecule = ''
+  character(len=128) :: filename_save = ''
+  logical :: recalculateFreqWithEupElow = .false.
+  logical :: iLevel_subtract_one = .false.
   logical :: verbose = .true.
   !
   double precision :: freqmin=0D0, freqmax=1D99
   !
-  double precision :: max_evol_time = 1D8
-  real :: max_code_run_time = 5.0
+  double precision :: max_evol_time = 1D16
+  double precision :: max_code_run_time = 10.0
   double precision :: rtol = 1D-4, atol = 1D-20
   !
   character(len=16)  :: geotype = ''
@@ -63,6 +65,9 @@ type :: type_rdxx_cfg
   character(len=128) :: dir_out = ''
   character(len=128) :: filename_out = ''
   !
+  character(len=32) :: solve_method = ''
+  character(len=32) :: f_occupation_init_method = ''
+  !
   logical :: provideLength = .false.
   double precision length_scale
   !
@@ -73,9 +78,10 @@ type :: type_rdxx_cfg
     n_H2, n_HI, n_oH2, n_pH2, n_Hplus, n_E, n_He   
   integer :: nTkin=1, ndv=1, nn_x=1, nNcol_x=1, ndens=1 ! Vector sizes
   integer iTkin, idv, in_x, iNcol_x, idens ! Loop indices
-  double precision opH2_ratio
-  logical opH2eq3
+  double precision ::  opH2_ratio = 3D0
+  logical :: opH2eq3 = .false.
   integer fU
+  integer :: collisioPartnerCrit = 1
 end type type_rdxx_cfg
 
 type(type_rdxx_cfg) :: rdxx_cfg
@@ -89,11 +95,12 @@ contains
 subroutine do_my_radex(do_init)
   logical, intent(in), optional :: do_init
   logical do_ini
-  integer i, itot, ntot
+  integer i, itot, ntot, ilowSav, iupSav
   integer iTkin, idv, in_x, iNcol_x, idens
   double precision fup, flow, gup, glow, Tex, Tr, flux_CGS, flux_K_km_s, flux_Jy
   double precision Inu_t, tau, t1, t2
   double precision beam_area
+  double precision critical_density, critical_density_old
   integer flag_good
   character(len=9) beam_FWHM_str
   !
@@ -113,21 +120,23 @@ subroutine do_my_radex(do_init)
     call my_radex_prepare
   end if
   !
-  write(beam_FWHM_str, '("(BM:", F4.1, ")")') rdxx_cfg%beam_FWHM_in_arcsec
+  write(beam_FWHM_str, '("(", F4.1, """)")') rdxx_cfg%beam_FWHM_in_arcsec
   !
   call openFileSequentialWrite(rdxx_cfg%fU, &
     combine_dir_filename(rdxx_cfg%dir_save, &
     rdxx_cfg%filename_save), 999, 1)
   write(rdxx_cfg%fU, '(2A5, A12, 2A15, 10A12, 2A7, &
-            &3A12, A2)') &
+            &5A12, A2)') &
     '! iup', 'ilow', 'Eup', 'freq', 'lam', 'Tex', 'tau', 'Tr', &
-    'fup', 'flow', 'flux_K', 'flux_int', 'flux_Jy', 'beta', &
-    'Jnu', 'gup', 'glow', 'Aul', 'Bul', 'Blu', 'q'
+    'fup', 'flow', 'flux_Kkms', 'flux_int', 'flux_Jy', 'beta', &
+    'Jnu', 'gup', 'glow', 'Aul', 'Bul', 'Blu', 'n_crit', 'n_crit_old', 'q'
   write(rdxx_cfg%fU, '(2A5, A12, 2A15, 10A12, 2A7, &
-            &3A12, A2)') &
+            &5A12, A2)') &
     '!    ', '  ', 'K', 'Hz', 'micron', 'K', '', 'K', &
-    '   ', '    ', 'K km/s', 'erg/cm2/s', 'Jy'//beam_FWHM_str, '    ', &
-    '...', '   ', '    ', '...', '...', '...', ''
+    '   ', '    ', 'K km/s', 'erg/cm2/s', 'Jy'//trim(beam_FWHM_str), '    ', &
+    '...', '   ', '    ', 's-1', '...', '...', 'cm-3', 'cm-3', ''
+  !
+  write(*,*) 'Critical density will be included for collisional partner: ',  rdxx_cfg%collisioPartnerCrit
   !
   itot = 0
   ntot = rdxx_cfg%nTkin * rdxx_cfg%ndv * rdxx_cfg%nn_x * &
@@ -178,7 +187,15 @@ subroutine do_my_radex(do_init)
     end if
     !
     call my_radex_prepare_molecule
-    call statistic_equil_solve
+    select case(rdxx_cfg%solve_method)
+      case ('ODE', 'ode')
+        call statistic_equil_solve
+      case ('Newton', 'NEWTON')
+        call statistic_equil_solve_Newton
+      case default
+        write(*,*) 'Unknown method: "', trim(rdxx_cfg%solve_method), '". Will use ODE.'
+        call statistic_equil_solve
+    end select
     !
     if (statistic_equil_params%is_good) then
       flag_good = 1
@@ -215,11 +232,26 @@ subroutine do_my_radex(do_init)
           a_mol_using%dv * r%freq / phy_SpeedOfLight_CGS * (4D0 * phy_Pi * phy_GaussFWHM_c)
         beam_area = FWHM_to_area(rdxx_cfg%beam_FWHM_in_arcsec)
         flux_Jy = (Inu_t - r%J_cont_bg) * beam_area / phy_jansky2CGS
+        ! flux_CGS = \int I_\nu d\nu d\Omega
+        !
+        ilowSav = r%ilow
+        iupSav = r%iup
+        if (rdxx_cfg%iLevel_subtract_one) then
+          ! Some people may want the level numbers be subtracted by one.
+          ilowSav = r%ilow - 1
+          iupSav = r%iup - 1
+        end if
+        !
+        call calc_critical_density_for_one_transition(i, tau)
+        critical_density = a_mol_using%rad_data%list(i)%critical_densities(rdxx_cfg%collisioPartnerCrit)
+        call calc_critical_density_old_def_for_one_transition(i, tau)
+        critical_density_old = a_mol_using%rad_data%list(i)%critical_densities(rdxx_cfg%collisioPartnerCrit)
+        !
         write(rdxx_cfg%fU, '(2I5, F12.4, 2ES15.7E2, 10ES12.3E3, 2F7.1, &
-                  &3ES12.3E3, I2)') &
-          r%iup-1, r%ilow-1, r%Eup, r%freq, r%lambda, Tex, r%tau, Tr, &
+                  &5ES12.3E3, I2)') &
+          iupSav, ilowSav, r%Eup, r%freq, r%lambda, Tex, r%tau, Tr, &
           fup, flow, flux_K_km_s, flux_CGS, flux_Jy, r%beta, &
-          r%J_ave, gup, glow, r%Aul, r%Bul, r%Blu, flag_good
+          r%J_ave, gup, glow, r%Aul, r%Bul, r%Blu, critical_density, critical_density_old, flag_good
       end associate
     end do
     flush(rdxx_cfg%fU)
@@ -253,6 +285,9 @@ end function FWHM_to_area
 subroutine my_radex_prepare_molecule
   integer i
   !
+  if (rdxx_cfg%verbose) then
+    write(*, '(2A)') 'Using geotype: ', rdxx_cfg%geotype
+  end if
   a_mol_using%geotype = rdxx_cfg%geotype ! Geometric type
   !
   a_mol_using%Tkin = rdxx_cfg%Tkin(rdxx_cfg%iTkin) ! K
@@ -274,9 +309,14 @@ subroutine my_radex_prepare_molecule
                                a_mol_using%density_mol
   end if
   !
-  ! Set the initial occupation to be LTE
-  a_mol_using%f_occupation = a_mol_using%level_list%weight * &
-      exp(-a_mol_using%level_list%energy / a_mol_using%Tkin)
+  ! Set the initial occupation
+  select case (rdxx_cfg%f_occupation_init_method)
+    case ('Boltzmann', 'BOLTZMANN', 'boltzmann')
+      a_mol_using%f_occupation = a_mol_using%level_list%weight * &
+        exp(-a_mol_using%level_list%energy / a_mol_using%Tkin)
+    case default
+      call random_number(a_mol_using%f_occupation)
+  end select
   ! Normalize
   a_mol_using%f_occupation = a_mol_using%f_occupation / &
                              sum(a_mol_using%f_occupation)
@@ -296,7 +336,7 @@ subroutine my_radex_prepare_molecule
         a_mol_using%colli_data%list(i)%dens_partner = &
           rdxx_cfg%n_H2(rdxx_cfg%idens)
       !
-      case ('o-H2', 'oH2', 'o_H2', 'OH2')
+      case ('o-H2', 'oH2', 'o_H2')
       !
         if (rdxx_cfg%n_oH2(rdxx_cfg%idens) .le. 1D-20) then
           a_mol_using%colli_data%list(i)%dens_partner = &
@@ -307,7 +347,7 @@ subroutine my_radex_prepare_molecule
             rdxx_cfg%n_oH2(rdxx_cfg%idens)
         end if
       !
-      case ('p-H2', 'pH2', 'p_H2', 'PH2')
+      case ('p-H2', 'pH2', 'p_H2')
       !
         if (rdxx_cfg%n_pH2(rdxx_cfg%idens) .le. 1D-20) then
           a_mol_using%colli_data%list(i)%dens_partner = &
@@ -346,9 +386,9 @@ subroutine my_radex_prepare_molecule
       !
     end select
     !
-    !write(rdxx_cfg%fU, '("!", ES12.4E2, " =", A8)') &
-    !  a_mol_using%colli_data%list(i)%dens_partner, &
-    !  trim(a_mol_using%colli_data%list(i)%name_partner)
+    write(rdxx_cfg%fU, '("!", ES12.4E2, " =", A8)') &
+      a_mol_using%colli_data%list(i)%dens_partner, &
+      trim(a_mol_using%colli_data%list(i)%name_partner)
     if (rdxx_cfg%verbose) then
       write(*, '("!", ES12.4E2, " =", A8)') &
         a_mol_using%colli_data%list(i)%dens_partner, &
@@ -359,20 +399,32 @@ subroutine my_radex_prepare_molecule
 end subroutine my_radex_prepare_molecule
 
 
-subroutine my_radex_prepare
+
+subroutine my_radex_prepare(loadMoleculeData, makeLUT)
+  logical, intent(in), optional :: loadMoleculeData, makeLUT
+  logical loadMoleculeData_, makeLUT_
   double precision lam_min, lam_max
   integer, parameter :: n_cont_lam = 200
   !
-  !nullify(a_mol_using)
-  allocate(a_mol_using)
+  loadMoleculeData_ = .true.
+  if (present(loadMoleculeData)) then
+    loadMoleculeData_ = loadMoleculeData
+  end if
+  makeLUT_ = .true.
+  if (present(makeLUT)) then
+    makeLUT_ = makeLUT
+  end if
   !
   ! Load the molecular data
-  call load_moldata_LAMBDA(&
-    combine_dir_filename(rdxx_cfg%dir_transition_rates, &
-    rdxx_cfg%filename_molecule))
-  !
-  if (rdxx_cfg%verbose) then
-    write(*, '(A, I5)') 'Number of levels: ', a_mol_using%n_level
+  if (loadMoleculeData_) then
+    if (associated(a_mol_using)) then
+      call deallocate_a_mol_using()
+    end if
+    allocate(a_mol_using)
+    !
+    call load_moldata_LAMBDA(&
+      combine_dir_filename(rdxx_cfg%dir_transition_rates, &
+      rdxx_cfg%filename_molecule), rdxx_cfg%recalculateFreqWithEupElow)
   end if
   !
   statistic_equil_params%max_runtime_allowed = rdxx_cfg%max_code_run_time
@@ -384,8 +436,8 @@ subroutine my_radex_prepare
   !
   ! Prepare for the storage
   statistic_equil_params%NEQ = a_mol_using%n_level
-  statistic_equil_params%LIW = 50 + statistic_equil_params%NEQ
-  statistic_equil_params%LRW = 61 + 13*statistic_equil_params%NEQ + &
+  statistic_equil_params%LIW = 50 + statistic_equil_params%NEQ*2
+  statistic_equil_params%LRW = 61 + 13*statistic_equil_params%NEQ*2 + &
                                statistic_equil_params%NEQ*statistic_equil_params%NEQ
   if (statistic_equil_params%NEQ .gt. a_mol_using%n_level) then
     if (allocated(statistic_equil_params%IWORK)) then
@@ -397,28 +449,30 @@ subroutine my_radex_prepare
              statistic_equil_params%RWORK(statistic_equil_params%LRW))
   end if
   !
-  lam_min = minval(a_mol_using%rad_data%list%lambda) ! micron
-  lam_max = maxval(a_mol_using%rad_data%list%lambda) ! micron
-  lam_min = lam_min * (1D0 - 10D0 * 1D7/phy_SpeedOfLight_CGS)
-  lam_max = lam_max * (1D0 + 10D0 * 1D7/phy_SpeedOfLight_CGS)
-  !
-  call make_local_cont_lut( &
-    trim(combine_dir_filename(rdxx_cfg%dir_bg, rdxx_cfg%filename_bg)), &
-    rdxx_cfg%provide_bgfile, &
-    rdxx_cfg%Tbg, rdxx_cfg%nTbg, rdxx_cfg%Tbgscaling, &
-    cont_lut_bg, lam_min, lam_max, n_cont_lam)
-  !
-  call make_local_cont_lut( &
-    trim(combine_dir_filename(rdxx_cfg%dir_in, rdxx_cfg%filename_in)), &
-    rdxx_cfg%provide_infile, &
-    rdxx_cfg%Tin, rdxx_cfg%nTin, rdxx_cfg%Tinscaling, &
-    cont_lut_in, lam_min, lam_max, n_cont_lam)
-  !
-  call make_local_cont_lut( &
-    trim(combine_dir_filename(rdxx_cfg%dir_out, rdxx_cfg%filename_out)), &
-    rdxx_cfg%provide_outfile, &
-    rdxx_cfg%Tout, rdxx_cfg%nTout, rdxx_cfg%Toutscaling, &
-    cont_lut_out, lam_min, lam_max, n_cont_lam)
+  if (makeLUT_) then
+    lam_min = minval(a_mol_using%rad_data%list%lambda) ! micron
+    lam_max = maxval(a_mol_using%rad_data%list%lambda) ! micron
+    lam_min = lam_min * (1D0 - 10D0 * 1D7/phy_SpeedOfLight_CGS)
+    lam_max = lam_max * (1D0 + 10D0 * 1D7/phy_SpeedOfLight_CGS)
+    !
+    call make_local_cont_lut( &
+      trim(combine_dir_filename(rdxx_cfg%dir_bg, rdxx_cfg%filename_bg)), &
+      rdxx_cfg%provide_bgfile, &
+      rdxx_cfg%Tbg, rdxx_cfg%nTbg, rdxx_cfg%Tbgscaling, &
+      cont_lut_bg, lam_min, lam_max, n_cont_lam)
+    !
+    call make_local_cont_lut( &
+      trim(combine_dir_filename(rdxx_cfg%dir_in, rdxx_cfg%filename_in)), &
+      rdxx_cfg%provide_infile, &
+      rdxx_cfg%Tin, rdxx_cfg%nTin, rdxx_cfg%Tinscaling, &
+      cont_lut_in, lam_min, lam_max, n_cont_lam)
+    !
+    call make_local_cont_lut( &
+      trim(combine_dir_filename(rdxx_cfg%dir_out, rdxx_cfg%filename_out)), &
+      rdxx_cfg%provide_outfile, &
+      rdxx_cfg%Tout, rdxx_cfg%nTout, rdxx_cfg%Toutscaling, &
+      cont_lut_out, lam_min, lam_max, n_cont_lam)
+  end if
   !
 end subroutine my_radex_prepare
 
@@ -536,10 +590,10 @@ function planck_B_lambda(T, lambda_CGS)
   double precision planck_B_lambda
   double precision, intent(in) :: T, lambda_CGS
   double precision tmp
-  double precision, parameter :: TH = 1D-6
+  double precision, parameter :: THTINY = 1D-6
   tmp = (phy_hPlanck_CGS * phy_SpeedOfLight_CGS) / &
         (lambda_CGS * phy_kBoltzmann_CGS * T)
-  if (abs(tmp) .gt. TH) then
+  if (abs(tmp) .gt. THTINY) then
     tmp = exp(tmp) - 1D0
   end if
   planck_B_lambda = &
@@ -552,10 +606,13 @@ function planck_B_nu(T, nu)
   double precision planck_B_nu
   double precision, intent(in) :: T, nu
   double precision tmp
-  double precision, parameter :: TH = 1D-6
+  double precision, parameter :: THTINY = 1D-6, THBIG = 100D0
   tmp = (phy_hPlanck_CGS*nu) / (phy_kBoltzmann_CGS*T)
-  if (abs(tmp) .lt. TH) then
+  if (abs(tmp) .lt. THTINY) then
     planck_B_nu = 2D0*(nu/phy_SpeedOfLight_CGS)**2 * (phy_kBoltzmann_CGS*T)
+  else if (tmp .gt. THBIG) then
+    planck_B_nu = 2D0*phy_hPlanck_CGS * nu**3 / &
+                  (phy_SpeedOfLight_CGS**2) * exp(-tmp)
   else
     planck_B_nu = 2D0*phy_hPlanck_CGS * nu**3 / &
                   (phy_SpeedOfLight_CGS**2 * (exp(tmp) - 1D0))

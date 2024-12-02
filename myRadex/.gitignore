@@ -1,8 +1,8 @@
 *.o
+*.so
+*.dSYM
 *.out
 *.mod
 .*.swp
 .*un~
 *tmp*
-my_radex
-*.so

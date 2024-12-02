@@ -21,12 +21,12 @@ use trivials
 use phy_const
 implicit none
 
-integer, parameter, private :: const_len_energy_level = 12
-integer, parameter, private :: const_len_molecule = 12
+integer, parameter, public :: const_len_qnums = 16
+integer, parameter, public :: const_len_molecule = 12
 
 
 type :: type_energy_level
-  character(len=const_len_energy_level) :: name_energy
+  character(len=const_len_qnums) :: sQnum
   integer id
   double precision :: energy
   double precision :: weight
@@ -37,6 +37,7 @@ type :: type_rad_transition
   double precision Eup, Elow, dE, freq, lambda
   double precision Aul, Bul, Blu, beta, J_ave, J_cont_bg, cooling_rate
   double precision tau
+  double precision, dimension(:), allocatable :: critical_densities
   integer iup, ilow
 end type type_rad_transition
 
@@ -80,8 +81,8 @@ end type type_molecule_energy_set
 type :: type_statistic_equil_params
   integer nitem
   double precision :: RTOL = 1D-4, ATOL = 1D-20
-  double precision :: t_max = 1D9, dt_first_step = 1D-4, ratio_tstep = 1.1D0
-  real :: max_runtime_allowed = 5.0
+  double precision :: t_max = 1D6, dt_first_step = 1D-4, ratio_tstep = 1.1D0
+  real :: max_runtime_allowed = 10.0
   integer n_record
   integer :: &
         NERR, &
@@ -104,7 +105,7 @@ type :: type_continuum_lut
   double precision, dimension(:), allocatable :: lam, alpha, J
 end type type_continuum_lut
 
-type(type_molecule_energy_set), pointer :: a_mol_using
+type(type_molecule_energy_set), pointer :: a_mol_using => null()
 
 type(type_statistic_equil_params) statistic_equil_params
 
@@ -152,8 +153,10 @@ subroutine calc_cooling_rate
 end subroutine calc_cooling_rate
 
 
-subroutine load_moldata_LAMBDA(filename)
+subroutine load_moldata_LAMBDA(filename, recalculateFreqWithEupElow)
   character(len=*) filename
+  logical, intent(in), optional :: recalculateFreqWithEupElow
+  logical recalcFreq
   character(len=512) strtmp
   integer, parameter :: nstr_split = 64
   character(len=32), dimension(nstr_split) :: str_split
@@ -161,11 +164,18 @@ subroutine load_moldata_LAMBDA(filename)
   character(len=8), parameter :: strfmt_row = '(A512)'
   character(len=8), parameter :: strfmt_float = '(F16.3)'
   character(len=8), parameter :: strfmt_int = '(I6)'
-  !double precision, parameter :: freq_conv_factor = 1D9
+  character(len=8), parameter :: strfmt_int_long = '(I64)'
+  character(len=8), parameter :: strfmt_str = '(A16)'
+  double precision, parameter :: GHz_to_Hz = 1D9
   !
   integer iup, ilow
   !
   integer n_T_, n_transition_
+  !
+  recalcFreq = .false.
+  if (present(recalculateFreqWithEupElow)) then
+    recalcFreq = recalculateFreqWithEupElow
+  end if
   !
   if (.not. getFileUnit(fU)) then
     write(*,*) 'Cannot get a free file unit.  In load_moldata_LAMBDA.'
@@ -181,23 +191,25 @@ subroutine load_moldata_LAMBDA(filename)
   read(fU,'(A1)') strtmp
   read(fU,'(A1)') strtmp
   read(fU,'(A1)') strtmp
-  read(fU,'(I6)') a_mol_using%n_level
+  read(fU, strfmt_int_long) a_mol_using%n_level
   read(fU,'(A1)') strtmp
+  write(*, '(A,I6)') 'Number of energy levels:', a_mol_using%n_level
   allocate(a_mol_using%level_list(a_mol_using%n_level), &
            a_mol_using%f_occupation(a_mol_using%n_level))
   do i=1, a_mol_using%n_level
     read(fU, strfmt_row) strtmp
     call split_str_by_space(strtmp, str_split, nstr_split, nout)
-    ! was strfmt_float, but the infile is not guaranteed to be
-    ! fixed width; therefore, use * and 'cast' into float
-    read(str_split(2), *) a_mol_using%level_list(i)%energy
-    read(str_split(3), *) a_mol_using%level_list(i)%weight
+    read(str_split(2), strfmt_float) a_mol_using%level_list(i)%energy
+    read(str_split(3), strfmt_float) a_mol_using%level_list(i)%weight
+    read(str_split(4), strfmt_str) a_mol_using%level_list(i)%sQnum
+    a_mol_using%level_list(i)%sQnum = adjustl(a_mol_using%level_list(i)%sQnum)
   end do
   !
   ! Get radiative transitions
   allocate(a_mol_using%rad_data)
   read(fU,'(A1)') strtmp
-  read(fU,'(I8)') a_mol_using%rad_data%n_transition
+  read(fU, strfmt_int_long) a_mol_using%rad_data%n_transition
+  write(*,'(A,I6)') 'Number of radiative transitions:', a_mol_using%rad_data%n_transition
   read(fU,'(A1)') strtmp
   allocate(a_mol_using%rad_data%list(a_mol_using%rad_data%n_transition))
   do i=1, a_mol_using%rad_data%n_transition
@@ -206,27 +218,30 @@ subroutine load_moldata_LAMBDA(filename)
     read(str_split(2), strfmt_int) a_mol_using%rad_data%list(i)%iup
     read(str_split(3), strfmt_int) a_mol_using%rad_data%list(i)%ilow
     read(str_split(4), strfmt_float) a_mol_using%rad_data%list(i)%Aul
-    !read(str_split(5), strfmt_float) a_mol_using%rad_data%list(i)%freq
+    read(str_split(5), strfmt_float) a_mol_using%rad_data%list(i)%freq
     !read(str_split(6), strfmt_float) a_mol_using%rad_data%list(i)%Eup
     !
-    ! The frequency in the table may be incorrect, so here I recompute from the
-    ! energy difference.  The result is in Hz.
     iup  = a_mol_using%rad_data%list(i)%iup
     ilow = a_mol_using%rad_data%list(i)%ilow
     !
-    a_mol_using%rad_data%list(i)%freq = phy_SpeedOfLight_CGS * &
-      (a_mol_using%level_list(iup)%energy - &
-       a_mol_using%level_list(ilow)%energy)
-    !
+    if (recalcFreq) then
+      ! The frequencies in the LAMDA data file may be inconsistent with the energy levels,
+      ! so here I recompute them using the energy differences.  The results are in Hz.
+      ! However, note that the energy levels in the LAMDA data file may not be accurate,
+      ! so by default this recalculation is NOT done.
+      a_mol_using%rad_data%list(i)%freq = phy_SpeedOfLight_CGS * &
+        (a_mol_using%level_list(iup)%energy - &
+         a_mol_using%level_list(ilow)%energy)
+    else
+      ! The frequency unit in the LAMDA file is in GHz. Now convert to Hz.
+      a_mol_using%rad_data%list(i)%freq = a_mol_using%rad_data%list(i)%freq * GHz_to_Hz
+    end if
     a_mol_using%rad_data%list(i)%Eup  = a_mol_using%level_list(iup)%energy * phy_cm_1_2K
     a_mol_using%rad_data%list(i)%Elow = a_mol_using%level_list(ilow)%energy * phy_cm_1_2K
   end do
   !
   ! Convert the energy unit into Kelvin from cm-1
   a_mol_using%level_list%energy = a_mol_using%level_list%energy * phy_cm_1_2K
-  !
-  !!! Now frequency in Hz.
-  !!a_mol_using%rad_data%list%freq = a_mol_using%rad_data%list%freq * freq_conv_factor
   !
   ! Lambda in micron
   a_mol_using%rad_data%list%lambda = phy_SpeedOfLight_SI/a_mol_using%rad_data%list%freq*1D6
@@ -245,48 +260,41 @@ subroutine load_moldata_LAMBDA(filename)
   allocate(a_mol_using%colli_data)
   ! Get the number of collisional partners
   read(fU,'(A1)') strtmp
-  read(fU,'(I4)') a_mol_using%colli_data%n_partner
+  read(fU, strfmt_int_long) a_mol_using%colli_data%n_partner
+  write(*,'(A,I6)') 'Number of collisional partners:', a_mol_using%colli_data%n_partner
   allocate(a_mol_using%colli_data%list(a_mol_using%colli_data%n_partner))
+  !
+  do i=1, a_mol_using%rad_data%n_transition
+    allocate(a_mol_using%rad_data%list(i)%critical_densities(a_mol_using%colli_data%n_partner))
+  end do
+  !
   do i=1, a_mol_using%colli_data%n_partner
-    ! Get the ID of partner: the first entry on the line is the collider ID
-    ! (the rest is junk)
+    ! Get the name of partner
     read(fU,'(A1)') strtmp
     read(fU, strfmt_row) strtmp
     call split_str_by_space(strtmp, str_split, nstr_split, nout)
-    strtmp = str_split(1)
-    select case (strtmp)
-        case ('1')
-            a_mol_using%colli_data%list(i)%name_partner = 'H2'
-        case ('2')
-            a_mol_using%colli_data%list(i)%name_partner = 'pH2'
-        case ('3')
-            a_mol_using%colli_data%list(i)%name_partner = 'oH2'
-        case ('4')
-            a_mol_using%colli_data%list(i)%name_partner = 'E'
-        case ('5')
-            a_mol_using%colli_data%list(i)%name_partner = 'H'
-        case ('6')
-            a_mol_using%colli_data%list(i)%name_partner = 'HE'
-        case ('7')
-            a_mol_using%colli_data%list(i)%name_partner = 'H+'
-    end select
-    !a_mol_using%colli_data%list(i)%name_partner = trim(str_split(4))
-    !if (a_mol_using%colli_data%list(i)%name_partner .eq. 'electron') then
-    !  a_mol_using%colli_data%list(i)%name_partner = 'e'
-    !end if
+    a_mol_using%colli_data%list(i)%name_partner = trim(str_split(4))
+    if (a_mol_using%colli_data%list(i)%name_partner .eq. 'electron') then
+      a_mol_using%colli_data%list(i)%name_partner = 'e'
+    else if (a_mol_using%colli_data%list(i)%name_partner .eq. 'with') then
+      a_mol_using%colli_data%list(i)%name_partner = str_split(5)
+    end if
+    write(*, '(A, I6, " ", A)') 'Collisional partner:', i, a_mol_using%colli_data%list(i)%name_partner
     ! Get the number of transitions and temperatures
     read(fU,'(A1)') strtmp
-    read(fU,'(I8)') a_mol_using%colli_data%list(i)%n_transition
+    read(fU, strfmt_int_long) a_mol_using%colli_data%list(i)%n_transition
+    write(*,'(A,2I6)') 'Number of collisional transitions:', i, a_mol_using%colli_data%list(i)%n_transition
     read(fU,'(A1)') strtmp
-    read(fU,'(I4)') a_mol_using%colli_data%list(i)%n_T
+    read(fU, strfmt_int_long) a_mol_using%colli_data%list(i)%n_T
+    write(*,'(A,2I6)') 'Number of temperatures:', i, a_mol_using%colli_data%list(i)%n_T
     !
     ! Name too long...
     n_transition_ = a_mol_using%colli_data%list(i)%n_transition
     n_T_ = a_mol_using%colli_data%list(i)%n_T
     if ((n_T_+3) .gt. nstr_split) then
-      write(*,*) 'The number of different temperatures is too large!'
-      write(*,*) 'nstr_split = ', nstr_split
-      write(*,*) 'Change nstr_split of the source code to a higher value.'
+      write(*,'(A)') 'The number of different temperatures is too large!'
+      write(*,'(A, I6)') 'nstr_split = ', nstr_split
+      write(*,'(A)') 'Change nstr_split of the source code to a higher value.'
       stop
     end if
     !
@@ -345,11 +353,25 @@ end subroutine load_moldata_LAMBDA
 
 
 
+subroutine deallocate_a_mol_using()
+  if (associated(a_mol_using)) then
+    deallocate(a_mol_using%rad_data%list)
+    deallocate(a_mol_using%colli_data%list)
+    deallocate(a_mol_using%level_list, &
+               a_mol_using%f_occupation, &
+               a_mol_using%rad_data, &
+               a_mol_using%colli_data)
+    deallocate(a_mol_using)
+    nullify(a_mol_using)
+  end if
+end subroutine deallocate_a_mol_using
+
+
 subroutine statistic_equil_solve
   use my_timer
   external stat_equili_ode_f, stat_equili_ode_jac
   integer i
-  double precision t, tout, t_step
+  double precision t, tout, t_step, tscal, edot
   type(atimer) timer
   real time_thisstep, runtime_thisstep, time_laststep, runtime_laststep
   !
@@ -399,8 +421,8 @@ subroutine statistic_equil_solve
     time_thisstep = timer%elapsed_time()
     runtime_thisstep = time_thisstep - time_laststep
     if ((runtime_thisstep .gt. &
-         max(5.0*runtime_laststep, &
-             0.1*statistic_equil_params%max_runtime_allowed)) &
+         max(100D0*runtime_laststep, &
+             2D0*statistic_equil_params%max_runtime_allowed)) &
         .or. &
         (time_thisstep .gt. statistic_equil_params%max_runtime_allowed)) then
       write(*, '(A, ES9.2/)') 'Premature finish: t = ', t
@@ -419,68 +441,113 @@ subroutine statistic_equil_solve
     tout = t + t_step
   end do
   !
-  if ((t .lt. statistic_equil_params%t_max * 0.3D0) .or. &
-      (3*statistic_equil_params%NERR .gt. statistic_equil_params%n_record)) then
-    write(*, '(/A)') 'Error occurred:'
+  if (3*statistic_equil_params%NERR .gt. statistic_equil_params%n_record) then
+    write(*, '(/A)') 'Errors occurred:'
     write(*, '(2ES12.4, 2I6, /)') t, statistic_equil_params%t_max, &
       statistic_equil_params%NERR, statistic_equil_params%n_record
     statistic_equil_params%is_good = .false.
   end if
+  !
+  a_mol_using%f_occupation = a_mol_using%f_occupation / sum(a_mol_using%f_occupation)
   !
   call stat_equili_ode_f(a_mol_using%n_level, &
     t, a_mol_using%f_occupation, &
     statistic_equil_params%RWORK(1:a_mol_using%n_level))
   !
   do i=1, a_mol_using%n_level
-    if (a_mol_using%f_occupation(i) .lt. -1D4*statistic_equil_params%ATOL) then
+    if (a_mol_using%f_occupation(i) .lt. -1D1*statistic_equil_params%ATOL) then
+      write(*, '(/A)') 'Negative occupation number occurred.'
+      write(*, *) i, a_mol_using%f_occupation(i)
       statistic_equil_params%is_good = .false.
+    end if
+    tscal = a_mol_using%f_occupation(i)/(abs(statistic_equil_params%RWORK(i))+1D-50)
+    if ((a_mol_using%f_occupation(i) .ge. 1D2*statistic_equil_params%ATOL) .and. &
+        (tscal .le. 1D-4*statistic_equil_params%t_max)) then
+      write(*, '(A, I4, 3ES12.2)') 'Maybe not equilibrium:', i, a_mol_using%f_occupation(i), statistic_equil_params%RWORK(i), tscal
     end if
     if (a_mol_using%f_occupation(i) .lt. 0D0) then
       a_mol_using%f_occupation(i) = 0D0
     end if
   end do
-  a_mol_using%f_occupation = a_mol_using%f_occupation / &
-                             sum(a_mol_using%f_occupation)
+  !
+  call calc_energy_derivative(a_mol_using%n_level, a_mol_using%f_occupation, edot)
+  write(*,*) 'd/dt \sum \dot{x_i}^2:', edot
 end subroutine statistic_equil_solve
 
 
 subroutine statistic_equil_solve_Newton
   external stat_equili_fcn, stat_equili_jac
   double precision, dimension(a_mol_using%n_level) :: XSCAL
-  integer IERR
+  double precision :: t=0D0, tscal
+  integer IERR, i
   integer, dimension(50) :: IOPT
   !
-  XSCAL = a_mol_using%f_occupation*1D-10 + 1D-30
-  statistic_equil_params%RTOL = 1D-10
-  IOPT = 0
+  statistic_equil_params%is_good = .true.
+  XSCAL = 1D-10
   !
+  IOPT = 0
   statistic_equil_params%IWORK = 0
   statistic_equil_params%RWORK = 0D0
   !
   IOPT(3) = 1 ! JACGEN
-  IOPT(11) = 0 ! MPRERR
+  IOPT(11) = 3 ! MPRERR
+  IOPT(13) = 1 ! MPRMON
   IOPT(31) = 4 ! NONLIN
+  IOPT(32) = 0 ! 1:Broyden
+  IOPT(33) = 0 ! 0:Damping
+  statistic_equil_params%IWORK(31) = 5000 ! NITER
+  statistic_equil_params%RWORK(22) = 1D-20 ! FCMIN
   !
-  statistic_equil_params%IWORK(1) = 50000 ! NITER
-  !
-  call NLEQ1( &
-             a_mol_using%n_level, &
-             stat_equili_fcn, &
-             stat_equili_jac, &
-             a_mol_using%f_occupation, &
-             XSCAL, &
-             statistic_equil_params%RTOL, &
-             IOPT, &
-             IERR, &
-             statistic_equil_params%LIW, &
-             statistic_equil_params%IWORK, &
-             statistic_equil_params%LRW, &
-             statistic_equil_params%RWORK)
-  if (IERR .eq. 10) then
-    write(*, '(/A)') 'LIW too small!'
-    stop
+#ifdef USE_EQ_SOLVER_NLEQ2
+  call NLEQ2&
+#else
+  call NLEQ1&
+#endif
+    (a_mol_using%n_level, &
+     stat_equili_fcn, &
+     stat_equili_jac, &
+     a_mol_using%f_occupation, &
+     XSCAL, &
+     statistic_equil_params%RTOL, &
+     IOPT, &
+     IERR, &
+     statistic_equil_params%LIW, &
+     statistic_equil_params%IWORK, &
+     statistic_equil_params%LRW, &
+     statistic_equil_params%RWORK)
+  if (IERR .eq. 0) then
+    write(*, '(A)') 'Iteration converged!'
+  else if (IERR .eq. -1) then
+    write(*, '(A)') 'More iterations are needed!'
+  else if (IERR .eq. 10) then
+    write(*, '(A)') 'LIW too small!'
+  else
+    write(*, '("Error code: ", I4)') IERR
+    write(*,*) IOPT
   end if
+  if (IERR .ne. 0) then
+    statistic_equil_params%is_good = .false.
+  end if
+  !
   a_mol_using%f_occupation = a_mol_using%f_occupation / sum(a_mol_using%f_occupation)
+  !
+  call stat_equili_ode_f(a_mol_using%n_level, &
+    t, a_mol_using%f_occupation, &
+    statistic_equil_params%RWORK(1:a_mol_using%n_level))
+  !
+  do i=1, a_mol_using%n_level
+    if (a_mol_using%f_occupation(i) .lt. -1D1*statistic_equil_params%ATOL) then
+      write(*, '(/A)') 'Negative occupation number occurred.'
+      write(*, *) i, a_mol_using%f_occupation(i)
+      statistic_equil_params%is_good = .false.
+    end if
+    tscal = a_mol_using%f_occupation(i)/(abs(statistic_equil_params%RWORK(i))+1D-50)
+        
+    if ((a_mol_using%f_occupation(i) .ge. 1D2*statistic_equil_params%ATOL) .and. &
+        (tscal .le. 1D-4*statistic_equil_params%t_max)) then
+      write(*, '(A, I4, 3ES12.2)') 'Maybe not equilibrium:', i, a_mol_using%f_occupation(i), statistic_equil_params%RWORK(i), tscal
+    end if
+  end do
 end subroutine statistic_equil_solve_Newton
 
 
@@ -540,7 +607,7 @@ subroutine calc_beta(tau, geotype, beta, dbeta_dtau)
   !
   tt = abs(tau)
   select case(geotype)
-    case ('spherical', 'Spherical', 'SPHERICAL', 'sphere', 'SPHERE')
+    case ('spherical', 'Spherical', 'SPHERICAL', 'sphere', 'Sphere', 'SPHERE')
       if (tt .le. const_small_tau) then
         ! Error < const_small_tau
         beta = 1D0
@@ -582,7 +649,11 @@ subroutine calc_beta(tau, geotype, beta, dbeta_dtau)
       if (tt .le. const_small_tau) then
         beta = 1D0
         dbeta_dtau = -LVG_c * 0.5D0
-      else if ((tt .gt. const_small_tau) .and. (tt .le. 7D0)) then
+      else if ((tt .gt. const_small_tau) .and. (tt .le. 14D0)) then
+        ! In radex the threshold is set to 7.
+        ! However, 14 seems to be better for continuity.
+        ! This discrepancy with the original De Jong paper seems to stem from
+        ! tau is redefined to tau/2 here (as in radex).
         A = LVG_c * tau
         tmp = exp(-A)
         beta = (1D0 - tmp) / A
@@ -604,13 +675,14 @@ subroutine calc_beta(tau, geotype, beta, dbeta_dtau)
         dbeta_dtau = tmp * (1D0/tau + 1D0/(3D0*tau*tau)) - 1D0/(3D0*tau*tau)
       end if
     case default
+      ! write(*,*) 'Using default geotype: beta=(1-exp(-t))/t'
       if (tt .le. const_small_tau) then
         beta = 1D0
         dbeta_dtau = -0.5D0
       else
         tmp = exp(-tau)
         beta = (1D0 - tmp) / tau
-        dbeta_dtau = ((1D0 + tau) * tmp - 1D0) / tau
+        dbeta_dtau = ((1D0 + tau) * tmp - 1D0) / (tau*tau)
       end if
   end select
 end subroutine calc_beta
@@ -625,17 +697,17 @@ subroutine stat_equili_fcn(N, X, F, IFAIL)
   double precision, intent(out), dimension(N) :: F
   integer, intent(inout) :: IFAIL
   integer i
-  IFAIL = 0
+  double precision tmp
   call stat_equili_ode_f(N, 0D0, X, F)
-  F(N) = 0D0
+  tmp = 0D0
   do i=1, N
-    F(N) = F(N) + X(i)
-    if (X(i) .lt. 0D0) then
-      IFAIL = 1
-    end if
+    !if (X(i) .lt. 0D0) then
+    !  IFAIL = 1
+    !  write(*,*) 'X(i)<0: ', 'x(', i, ') = ', x(i)
+    !end if
+    tmp = tmp + X(i)
   end do
-  F(N) = F(N) - 1D0
-  write(*,*) X
+  F(N) = tmp - 1D0
 end subroutine stat_equili_fcn
 
 
@@ -646,15 +718,15 @@ subroutine stat_equili_jac(N, LDJAC, X, DFDX, IFAIL)
   double precision, intent(out), dimension(LDJAC, N) :: DFDX
   integer, intent(inout) :: IFAIL
   integer i
-  IFAIL = 0
-  do i=1, N
-    if (X(i) .lt. 0D0) then
-      IFAIL = 1
-      exit
-    end if
-  end do
   call stat_equili_ode_jac(N, 0D0, X, 0, 0, DFDX, LDJAC)
+  do i=1, N
+    !if (X(i) .lt. 0D0) then
+    !  IFAIL = 1
+    !  exit
+    !end if
+  end do
   DFDX(LDJAC, 1:N) = 1D0
+  !write(*,'(I6,I6,/)') LDJAC,N
 end subroutine stat_equili_jac
 
 
@@ -761,6 +833,7 @@ end subroutine stat_equili_ode_f
 
 
 subroutine stat_equili_ode_jac(NEQ, t, y, ML, MU, PD, NROWPD)
+  ! PD(i,j) = \partial f_i / \partial x_j
   use statistic_equilibrium
   use phy_const
   implicit none
@@ -778,6 +851,9 @@ subroutine stat_equili_ode_jac(NEQ, t, y, ML, MU, PD, NROWPD)
     dS_dy_up, dS_dy_low
   double precision jnu, knu
   double precision t1
+  do j=1,NEQ
+    PD(:,j) = 0D0
+  end do
   Tkin = a_mol_using%Tkin
   do i=1, a_mol_using%rad_data%n_transition
     iup = a_mol_using%rad_data%list(i)%iup
@@ -879,3 +955,210 @@ subroutine stat_equili_ode_jac(NEQ, t, y, ML, MU, PD, NROWPD)
     end do
   end do
 end subroutine stat_equili_ode_jac
+
+
+
+subroutine calc_critical_density_for_one_transition(iTran, tau)
+  use statistic_equilibrium
+  use phy_const
+  implicit none
+  integer, intent(in) :: iTran
+  double precision, intent(in) :: tau
+  !
+  integer i, icp, ict, itmp, iup_rad, ilow_rad, iup_col, ilow_col, iL, iR
+  double precision nu, J_ave, Tkin, Cul, Clu, TL, TR, deltaE, &
+    del_nu, alpha, beta, dbeta_dtau
+  double precision lambda, cont_alpha, cont_J_bg, cont_J_in, cont_J_out, tmp
+  double precision jnu, knu
+  double precision radiative_transfer_rate_from_iup_to_ilow
+  double precision collisional_transfer_rate_from_iup_to_others
+  Tkin = a_mol_using%Tkin
+  iup_rad = a_mol_using%rad_data%list(iTran)%iup
+  ilow_rad = a_mol_using%rad_data%list(iTran)%ilow
+  nu = a_mol_using%rad_data%list(iTran)%freq
+  lambda = a_mol_using%rad_data%list(iTran)%lambda
+  !
+  call calc_beta(tau, a_mol_using%geotype, beta, dbeta_dtau)
+  !
+  radiative_transfer_rate_from_iup_to_ilow = a_mol_using%rad_data%list(iTran)%Aul * beta
+  !
+  do icp=1, a_mol_using%colli_data%n_partner
+    ! Find the T interval for interpolation
+    itmp = a_mol_using%colli_data%list(icp)%n_T
+    if (Tkin .le. a_mol_using%colli_data%list(icp)%T_coll(1)) then
+      iL = 1
+      iR = 1
+    else if (Tkin .ge. a_mol_using%colli_data%list(icp)%T_coll(itmp)) then
+      iL = itmp
+      iR = itmp
+    else
+      do i=2, a_mol_using%colli_data%list(icp)%n_T
+        if ((Tkin .ge. a_mol_using%colli_data%list(icp)%T_coll(i-1)) .and. &
+            (Tkin .le. a_mol_using%colli_data%list(icp)%T_coll(i))) then
+          iL = i-1
+          iR = i
+          exit
+        end if
+      end do
+    end if
+    !
+    collisional_transfer_rate_from_iup_to_others = 0D0
+    do ict=1, a_mol_using%colli_data%list(icp)%n_transition
+      iup_col = a_mol_using%colli_data%list(icp)%iup(ict)
+      ilow_col = a_mol_using%colli_data%list(icp)%ilow(ict)
+      if ((iup_col .ne. iup_rad) .and. (ilow_col .ne. iup_rad)) then
+        cycle
+      end if
+      deltaE = a_mol_using%level_list(iup_col)%energy - a_mol_using%level_list(ilow_col)%energy
+      ! Do the interpolation
+      if (iL .eq. iR) then
+        Cul = a_mol_using%colli_data%list(icp)%Cul(iL, ict)
+      else
+        TL = a_mol_using%colli_data%list(icp)%T_coll(iL)
+        TR = a_mol_using%colli_data%list(icp)%T_coll(iR)
+        Cul = (a_mol_using%colli_data%list(icp)%Cul(iL, ict) * (TR - Tkin) + &
+                a_mol_using%colli_data%list(icp)%Cul(iR, ict) * (Tkin - TL)) / (TR - TL)
+      end if
+      !
+      Clu = Cul * exp(-deltaE/Tkin) * &
+             a_mol_using%level_list(iup_col)%weight / &
+             a_mol_using%level_list(ilow_col)%weight
+      if (iup_col .eq. iup_rad) then
+        collisional_transfer_rate_from_iup_to_others = &
+          collisional_transfer_rate_from_iup_to_others + Cul
+      else if (ilow_col .eq. iup_rad) then
+        collisional_transfer_rate_from_iup_to_others = &
+          collisional_transfer_rate_from_iup_to_others + Clu
+      else
+        write(*,*) "Something is wrong in calc_critical_density_for_one_transition!"
+      end if
+    end do
+    a_mol_using%rad_data%list(iTran)%critical_densities(icp) = &
+      radiative_transfer_rate_from_iup_to_ilow / &
+      (collisional_transfer_rate_from_iup_to_others + 1d-200)
+  end do
+end subroutine calc_critical_density_for_one_transition
+
+
+
+
+
+subroutine calc_critical_density_old_def_for_one_transition(iTran, tau)
+  use statistic_equilibrium
+  use phy_const
+  implicit none
+  integer, intent(in) :: iTran
+  double precision, intent(in) :: tau
+  integer i, icp, ict, itmp, iup_rad, ilow_rad, iup_col, ilow_col, iL, iR
+  double precision nu, J_ave, Tkin, Cul, Clu, TL, TR, deltaE, &
+    del_nu, alpha, beta, dbeta_dtau
+  double precision lambda, cont_alpha, cont_J_bg, cont_J_in, cont_J_out, tmp
+  double precision jnu, knu
+  double precision radiative_transfer_rate_from_iup_to_ilow
+  double precision collisional_transfer_rate_from_iup_to_others
+  Tkin = a_mol_using%Tkin
+  iup_rad = a_mol_using%rad_data%list(iTran)%iup
+  ilow_rad = a_mol_using%rad_data%list(iTran)%ilow
+  nu = a_mol_using%rad_data%list(iTran)%freq
+  lambda = a_mol_using%rad_data%list(iTran)%lambda
+  !
+  call calc_beta(tau, a_mol_using%geotype, beta, dbeta_dtau)
+  !
+  radiative_transfer_rate_from_iup_to_ilow = a_mol_using%rad_data%list(iTran)%Aul * beta
+  !
+  do icp=1, a_mol_using%colli_data%n_partner
+    ! Find the T interval for interpolation
+    itmp = a_mol_using%colli_data%list(icp)%n_T
+    if (Tkin .le. a_mol_using%colli_data%list(icp)%T_coll(1)) then
+      iL = 1
+      iR = 1
+    else if (Tkin .ge. a_mol_using%colli_data%list(icp)%T_coll(itmp)) then
+      iL = itmp
+      iR = itmp
+    else
+      do i=2, a_mol_using%colli_data%list(icp)%n_T
+        if ((Tkin .ge. a_mol_using%colli_data%list(icp)%T_coll(i-1)) .and. &
+            (Tkin .le. a_mol_using%colli_data%list(icp)%T_coll(i))) then
+          iL = i-1
+          iR = i
+          exit
+        end if
+      end do
+    end if
+    collisional_transfer_rate_from_iup_to_others = 0D0
+    do ict=1, a_mol_using%colli_data%list(icp)%n_transition
+      iup_col = a_mol_using%colli_data%list(icp)%iup(ict)
+      ilow_col = a_mol_using%colli_data%list(icp)%ilow(ict)
+      if ((iup_col .ne. iup_rad) .or. (ilow_col .ne. ilow_rad)) then
+        ! This makes the difference with calc_critical_density_f
+        cycle
+      end if
+      deltaE = a_mol_using%level_list(iup_col)%energy - a_mol_using%level_list(ilow_col)%energy
+      if (iL .eq. iR) then
+        Cul = a_mol_using%colli_data%list(icp)%Cul(iL, ict)
+      else
+        TL = a_mol_using%colli_data%list(icp)%T_coll(iL)
+        TR = a_mol_using%colli_data%list(icp)%T_coll(iR)
+        Cul = (a_mol_using%colli_data%list(icp)%Cul(iL, ict) * (TR - Tkin) + &
+                a_mol_using%colli_data%list(icp)%Cul(iR, ict) * (Tkin - TL)) / (TR - TL)
+      end if
+      Clu = Cul * exp(-deltaE/Tkin) * &
+             a_mol_using%level_list(iup_col)%weight / &
+             a_mol_using%level_list(ilow_col)%weight
+      if (iup_col .eq. iup_rad) then
+        collisional_transfer_rate_from_iup_to_others = &
+          collisional_transfer_rate_from_iup_to_others + Cul
+      else if (ilow_col .eq. iup_rad) then
+        collisional_transfer_rate_from_iup_to_others = &
+          collisional_transfer_rate_from_iup_to_others + Clu
+      else
+        write(*,*) "Something is wrong in calc_critical_density_old_def_for_one_transition!"
+      end if
+    end do
+    a_mol_using%rad_data%list(iTran)%critical_densities(icp) = &
+      radiative_transfer_rate_from_iup_to_ilow / &
+      (collisional_transfer_rate_from_iup_to_others + 1d-200)
+  end do
+end subroutine calc_critical_density_old_def_for_one_transition
+
+
+
+subroutine calc_critical_density_f(tau)
+  use statistic_equilibrium
+  use phy_const
+  implicit none
+  double precision, intent(in) :: tau
+  integer irt
+  do irt=1, a_mol_using%rad_data%n_transition
+    call calc_critical_density_for_one_transition(irt, tau)
+  end do
+end subroutine calc_critical_density_f
+
+
+
+subroutine calc_critical_density_old_def_f(tau)
+  use statistic_equilibrium
+  use phy_const
+  implicit none
+  double precision, intent(in) :: tau
+  integer irt
+  do irt=1, a_mol_using%rad_data%n_transition
+    call calc_critical_density_old_def_for_one_transition(irt, tau)
+  end do
+end subroutine calc_critical_density_old_def_f
+
+
+
+subroutine calc_energy_derivative(n, x, edot)
+  external stat_equili_ode_f, stat_equili_ode_jac
+  integer, intent(in) :: n
+  double precision, intent(in), dimension(n) :: x
+  double precision, intent(out) :: edot
+  double precision :: t = 0D0
+  double precision, dimension(n) :: f
+  double precision, dimension(n,n) :: jac
+  integer i,j
+  call stat_equili_ode_f(n, t, x, f)
+  call stat_equili_ode_jac(n, t, x, 0, 0, jac, n)
+  edot = dot_product(f,matmul(jac,f))
+end subroutine calc_energy_derivative
