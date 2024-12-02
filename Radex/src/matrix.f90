@@ -24,7 +24,7 @@ SUBROUTINE matrix(niter,conv)
 
 !      Set up rate matrix
 
-   integer niter            ! iteration counter
+   integer, intent(in) :: niter            ! iteration counter
    integer ilev,jlev,klev   ! to loop over energy levels
    integer nplus            ! to solve statistical equilibrium
    integer iline            ! to loop over lines
@@ -97,7 +97,7 @@ SUBROUTINE matrix(niter,conv)
 
 !      First iteration: use background intensity
    if (niter.eq.0) then
-      do 51 iline=1,nline
+      do iline=1,nline
          m   = iupp(iline)
          n   = ilow(iline)
          etr = fk*xnu(iline)/trj(iline)
@@ -110,7 +110,7 @@ SUBROUTINE matrix(niter,conv)
          yrate(n,n) = yrate(n,n) + aeinst(iline)*gstat(m)*exr/gstat(n)
          yrate(m,n) = yrate(m,n) - aeinst(iline)*(gstat(m)/gstat(n))*exr
          yrate(n,m) = yrate(n,m) - aeinst(iline)*(1.0+exr)
-51    enddo
+      enddo
    else
 !      Subsequent iterations: use escape probability.
       cddv = cdmol / deltav
@@ -118,7 +118,7 @@ SUBROUTINE matrix(niter,conv)
       nthick = 0
       nfat   = 0
 
-      do 52 iline=1,nline
+      do  iline=1,nline
          xt  = xnu(iline)**3.0
          m   = iupp(iline)
          n   = ilow(iline)
@@ -151,7 +151,7 @@ SUBROUTINE matrix(niter,conv)
          yrate(m,n) = yrate(m,n)-aeinst(iline)*(gstat(m)/gstat(n))*exr
          yrate(n,m) = yrate(n,m)-aeinst(iline)*(beta+exr)
 ! cc up to 30nov2011:    	yrate(n,m) = yrate(n,m)-aeinst(iline)*(1.0+exr)
-52    enddo
+      enddo
    endif
 
 !      Warn user if convergence problems expected
@@ -204,11 +204,11 @@ SUBROUTINE matrix(niter,conv)
 
       if (is_debug) print*,'nreduce=',nreduce
 
-!      We now separate the collisionally coupled levels from those that
-!      are coupled mainly by radiative processes, compute an effective
-!      cascade matrix for rates of transfer from one low-lying level
-!      to another and then solve this reduced system of equations
-!      explicitly for the low-lying levels only.
+      !      We now separate the collisionally coupled levels from those that
+      !      are coupled mainly by radiative processes, compute an effective
+      !      cascade matrix for rates of transfer from one low-lying level
+      !      to another and then solve this reduced system of equations
+      !      explicitly for the low-lying levels only.
 
       do jlev=1,nreduce
          do ilev=1,nreduce
@@ -253,22 +253,22 @@ SUBROUTINE matrix(niter,conv)
    if (is_debug) print*,'total rhs=',total
    if (is_debug) print*,'rhs=',(rhs(ilev),ilev=1,nlev)
 
-!      Limit population to minpop
+   !      Limit population to minpop
    do ilev=1,nlev
 
-! csb301111 Store old population
+      ! csb301111 Store old population
       xpopold(ilev)=xpop(ilev)
 
       xpop(ilev) = dmax1(minpop,rhs(ilev)/total)
 
-! csb301111 first iteration: there is no old population
+      ! csb301111 first iteration: there is no old population
       if(niter.eq.0) xpopold(ilev)=xpop(ilev)
 
    enddo
 
    if (is_debug) print*,'computing T_ex...'
 
-!      Compute excitation temperatures of the lines
+   !      Compute excitation temperatures of the lines
    tsum = 0.0
    do iline=1,nline
       m  = iupp(iline)
@@ -287,10 +287,10 @@ SUBROUTINE matrix(niter,conv)
             thistex = fk*xnu(iline) / (dlog(xpop(n)*gstat(m)/(xpop(m)*gstat(n))))
          endif
 
-!      Only thick lines count for convergence
+         !      Only thick lines count for convergence
          if(taul(iline).gt.0.01) tsum = tsum + abs((thistex-tex(iline))/thistex)
 
-!      Update excitation temperature & optical depth
+         !      Update excitation temperature & optical depth
          tex(iline)  = 0.5*(thistex+tex(iline))
          taul(iline) = cddv*(xpop(n)*gstat(m)/gstat(n)-xpop(m)) &
             / (fgaus*xt/aeinst(iline))
@@ -309,7 +309,7 @@ SUBROUTINE matrix(niter,conv)
       if (is_debug) print*,niter,nthick,tsum,tsum/nthick,conv
    endif
 
-!sb301111 now do the underrelaxation!
+   !sb301111 now do the underrelaxation!
    do ilev=1,nlev
       xpop(ilev)=0.3*xpop(ilev)+0.7*xpopold(ilev)
    end do

@@ -74,21 +74,23 @@ PROGRAM radex
    call matrix(niter,conv)
 
    !      Start iterating
-   do 22 niter=1,maxiter
+   do niter=1,maxiter
 
       !      Invert rate matrix using escape probability for line photons
       call matrix(niter,conv)
       if (conv) then
          print*,'Finished in ',niter,' iterations.'
-         go to 23
+         exit
       endif
-22 continue
+   enddo
 
-   print*,'   Warning: Calculation did not converge in ',maxiter,' iterations.'
+   if (niter > maxiter) then
+      print*,'   Warning: Calculation did not converge in ',maxiter,' iterations.'
+   endif
 
    !      Write output
    if (is_debug) print*,'calling output'
-23 call output(niter)
+   call output(niter)
 
    !      See if user wants more, else call it a day
    ! 51 format(A,$)
