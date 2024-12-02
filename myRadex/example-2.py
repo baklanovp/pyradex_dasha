@@ -5,7 +5,7 @@ pd.set_option('display.max_columns', None)
 pd.set_option('display.width', 2000)
 
 a = myRadex.MyRadexModel(
-    dir_transition_rates='/Users/fjdu/_o/radex/data/',
+    dir_transition_rates='./',
     filename_molecule='hco+.dat')
 
 a.run_one_params(

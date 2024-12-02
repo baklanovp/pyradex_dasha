@@ -3,7 +3,7 @@ import numpy as np
 import pandas as pd
 
 a = myRadex.MyRadexModel(
-    dir_transition_rates='./',
+    dir_transition_rates='../Radex/data',
     filename_molecule='ph2co-h2.dat')
 
 print('Quantum numbers:', a.qnum_s)

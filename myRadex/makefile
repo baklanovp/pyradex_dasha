@@ -19,7 +19,7 @@ ifeq ($(cpl), ifort)
   lflags_fast = -O2 -fpp
 else
   lflags_debug = -ffpe-trap=invalid,zero,overflow -Og -fbacktrace -fcheck=all
-  lflags_fast = -O2
+  lflags_fast = -O2 
 endif
 
 ifeq ($(equilibrium_solver), NLEQ2)
@@ -37,16 +37,16 @@ all: lflags = $(lflags_fast)
 all: my_radex
 
 wrapper: lflags = $(lflags_fast)
-wrapper: wrapper_my_radex.so
+wrapper: wrapper_my_radex.so   ## To make the wrapper with f2py
 
 debug: lflags = $(lflags_debug)
 debug: my_radex
 
-cflags = $(lflags) -c -cpp $(eq_solver_switch)
+cflags = $(lflags) -c -cpp -fPIC $(eq_solver_switch)
 
 OBJSWRAPPER=linalg_nleq1.o my_radex.o nleq1.o opkda1.o opkda2.o opkdmain.o statistic_equilibrium.o sub_global_variables.o sub_trivials.o wnorm.o zibconst.o zibmon.o zibsec.o wrapper_for_python.o wrapper_for_cython.o pipe_fortran_python.o
 
-cython_wrapper: myRadex.*.so
+cython_wrapper: myRadex.*.so  ## To make the wrapper with Cython
 
 myRadex.*.so: setup.py wrapper_for_cython.pyx $(MYRADEX_LIB)
 	$(PYTHON) setup.py build_ext --inplace
@@ -54,11 +54,15 @@ myRadex.*.so: setup.py wrapper_for_cython.pyx $(MYRADEX_LIB)
 $(MYRADEX_LIB): $(OBJSWRAPPER)
 	ar rcs $(MYRADEX_LIB) $(OBJSWRAPPER)
 
-my_radex: configure.o main.o my_radex.o opkda1.o opkda2.o opkdmain.o statistic_equilibrium.o sub_global_variables.o sub_trivials.o $(eq_solver).o linalg_nleq1.o wnorm.o zibconst.o zibmon.o zibsec.o 
-	$(cpl) $(lflags) -o my_radex configure.o main.o my_radex.o opkda1.o opkda2.o opkdmain.o statistic_equilibrium.o sub_global_variables.o sub_trivials.o $(eq_solver).o linalg_nleq1.o wnorm.o zibconst.o zibmon.o zibsec.o 
+OBJS_base = my_radex.o opkda1.o opkda2.o opkdmain.o statistic_equilibrium.o sub_global_variables.o sub_trivials.o $(eq_solver).o linalg_nleq1.o wnorm.o zibconst.o zibmon.o zibsec.o 
+OBJS_radex := configure.o main.o $(OBJS_base)
+my_radex: $(OBJS_radex)  ## To make my_radex -- the executable file 
+	$(cpl) $(lflags) -o my_radex $(OBJS_radex)
 
-wrapper_my_radex.so: wrapper_for_python.o my_radex.o opkda1.o opkda2.o opkdmain.o statistic_equilibrium.o sub_global_variables.o sub_trivials.o $(eq_solver).o linalg_nleq1.o wnorm.o zibconst.o zibmon.o zibsec.o 
-	$(f2py) -c -m wrapper_my_radex wrapper_for_python.f90 --include-path "$(shell pwd)" --backend meson
+OBJS_wrap_radex := wrapper_for_python.o $(OBJS_base)
+wrapper_my_radex.so: $(OBJS_wrap_radex)  
+	$(f2py) -c -m wrapper_my_radex wrapper_for_python.f90 --include-path "$(shell pwd)" 
+#	$(f2py) -c -m wrapper_my_radex wrapper_for_python.f90 --include-path "$(shell pwd)" --backend meson
 
 configure.o: configure.f90 sub_trivials.o my_radex.o statistic_equilibrium.o
 	$(cpl) $(cflags) configure.f90
@@ -114,8 +118,26 @@ sub_global_variables.o:  sub_global_variables.f90
 sub_trivials.o: sub_trivials.f90 sub_global_variables.o
 	$(cpl) $(cflags) sub_trivials.f90
 
-clean:
+
+
+help: ## Show this dynamic help
+	$(info Available targets)
+	@awk '/^[a-zA-Z\-_0-9]+:/ {                                   \
+      nb = sub( /^## /, "", helpMsg );                             \
+      if(nb == 0) {                                                \
+        helpMsg = $$0;                                             \
+        nb = sub( /^[^:]*:.* ## /, "", helpMsg );                  \
+      }                                                            \
+      if (nb)                                                      \
+        printf "\033[1;31m%-" width "s\033[0m %s\n", $$1, helpMsg; \
+                                                                   \
+      helpMsg = $$0 }'                                             \
+    width=$$(grep -o '^[a-zA-Z_0-9]\+:' $(MAKEFILE_LIST) |  wc -L)  \
+    $(MAKEFILE_LIST)
+
+
+clean:  ## Clean obj-files, etc 
 	 rm ./*.mod ./*.o
 
-CLEAN:
+cleanall:   ## Clean ./*.mod ./*.o ./*.so ./*.a
 	 rm ./*.mod ./*.o ./*.so ./*.a

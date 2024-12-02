@@ -12,6 +12,23 @@ created with f2py.
 - https://github.com/fjdu/myRadex
 
 
+Install in dir myRadex
+----------------------
+
+Create conda environment as below
+
+.. code-block:: bash
+
+    cd myRadex/
+    make help
+    make my_radex
+
+    make wrapper    # f2py
+    OR 
+    make cython_wrapper   #  cython
+    ln -s myRadex.cpython-313-x86_64-linux-gnu.so myRadex.so
+
+
 Installation procedure for the f2py-wrapped version
 ---------------------------------------------------
 
@@ -24,6 +41,9 @@ Conda environment
     conda activate pyradex
     conda install numpy requests
     conda install conda-forge::cython
+        OR
+    conda install numpy requests cython
+    conda install jupyter matplotlib pandas
 
 
 Проверить работу без ошибок

@@ -6,3 +6,7 @@
 .*.swp
 .*un~
 *tmp*
+
+cython_debug/
+my_radex
+wrapper_for_cython.cpp
