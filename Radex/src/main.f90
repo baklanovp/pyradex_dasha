@@ -38,7 +38,7 @@ PROGRAM radex
 
    !! !   ***************  UNIT    ************************
    call cla_init();
-   call cla_register('-info',   'Print extanded information',  cla_flag, 'f');
+   call cla_register('-info',   'Print extended information',  cla_flag, 'f');
    call cla_register('-h',     'Print this help',  cla_flag, 'f');
    !!!   *************** Read command line arguments    ************************
    !!! !Check if any arguments are found

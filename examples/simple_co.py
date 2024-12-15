@@ -1,4 +1,4 @@
-import pylab as pl
+import matplotlib.pyplot as plt
 import sys, os
 from os.path import dirname, abspath, join
 
@@ -19,28 +19,28 @@ for temperature in [5,10,20,30,40,50,60]:
     
     R.run_radex()
     
-    pl.figure(1)
-    pl.plot(R.level_population, label="T=%s" % R.temperature._repr_latex_())
+    plt.figure(1)
+    plt.plot(R.level_population, label="T=%s" % R.temperature._repr_latex_())
 
-    pl.figure(2)
-    pl.plot(R.frequency, R.tau, label="T=%s" % R.temperature._repr_latex_())
+    plt.figure(2)
+    plt.plot(R.frequency, R.tau, label="T=%s" % R.temperature._repr_latex_())
 
-    pl.figure(3)
-    pl.plot(R.frequency, R.tex, label="T=%s" % R.temperature._repr_latex_())
+    plt.figure(3)
+    plt.plot(R.frequency, R.tex, label="T=%s" % R.temperature._repr_latex_())
 
-f1 = pl.figure(1)
+f1 = plt.figure(1)
 ax1 = f1.gca()
 ax1.set_xlim(0,10)
 ax1.set_xlabel("Energy Level")
 ax1.set_ylabel("Population")
 
-f2 = pl.figure(2)
+f2 = plt.figure(2)
 ax2 = f2.gca()
 ax2.set_xlabel("Frequency")
 ax2.set_ylabel("Optical Depth")
 ax2.set_xlim(0,1000)
 
-f3 = pl.figure(3)
+f3 = plt.figure(3)
 ax3 = f3.gca()
 ax3.set_xlabel("Frequency")
 ax3.set_ylabel("Excitation Temperature")
